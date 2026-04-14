@@ -52,7 +52,7 @@ export const ProbabilityBar = ({
             <div style={{ minWidth: 0 }}>
               <span
                 style={{
-                  fontSize: "0.82rem",
+                  fontSize: "0.85rem",
                   fontWeight: 600,
                   color: "var(--text-200)",
                   display: "block",
@@ -64,7 +64,7 @@ export const ProbabilityBar = ({
                 {label}
               </span>
               {sublabel && (
-                <span style={{ fontSize: "0.68rem", color: "var(--text-400)" }}>
+                <span style={{ fontSize: "0.74rem", color: "var(--text-400)" }}>
                   {sublabel}
                 </span>
               )}
@@ -73,7 +73,7 @@ export const ProbabilityBar = ({
           <span
             style={{
               fontFamily: "var(--font-mono)",
-              fontSize: "0.82rem",
+              fontSize: "0.85rem",
               fontWeight: 700,
               color: "var(--text-100)",
               flexShrink: 0,

@@ -7,12 +7,13 @@
 ═══════════════════════════════════════════════════════════════ */
 
 :root {
-  /* Core palette */
-  --ink-900: #020509;
-  --ink-800: #060d16;
-  --ink-700: #0a1420;
-  --ink-600: #0f1c2d;
-  --ink-500: #15263d;
+  /* Core palette - Dark Purple */
+  --ink-900: #0a0114;
+  --ink-800: #120324;
+  --ink-700: #1c063b;
+  --ink-600: #270a54;
+  --ink-500: #340e70;
+
 
   /* Surface layers (Glassmorphism applied) */
   --surface-0: var(--ink-900);
@@ -122,7 +123,7 @@ body {
   left: -10%;
   width: 55vw;
   height: 55vw;
-  background: #0044bb;
+  background: #3b0764; /* deep purple variant */
 }
 
 .blob-2 {
@@ -130,7 +131,7 @@ body {
   right: -10%;
   width: 65vw;
   height: 65vw;
-  background: #020d1a;
+  background: #2e1065; /* deepest violet */
   animation-delay: -5s;
 }
 

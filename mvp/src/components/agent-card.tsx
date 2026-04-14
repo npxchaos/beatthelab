@@ -20,11 +20,8 @@ export const AgentCard = ({ insight }: { insight: AgentInsight }) => {
     <article
       style={{
         position: "relative",
-        padding: "1rem 1.2rem",
-        borderRadius: "var(--radius-md)",
-        background: "rgba(255,255,255,0.02)",
-        backdropFilter: "blur(24px)",
-        WebkitBackdropFilter: "blur(24px)",
+        padding: "1rem 1.25rem",
+        background: "var(--surface-0)",
         border: `1px solid ${cfg.border}`,
         overflow: "hidden",
         boxShadow: "0 4px 24px -1px rgba(0, 0, 0, 0.3)",
@@ -54,7 +51,7 @@ export const AgentCard = ({ insight }: { insight: AgentInsight }) => {
       >
         <span
           style={{
-            fontSize: "0.67rem",
+            fontSize: "0.72rem",
             fontWeight: 700,
             letterSpacing: "0.10em",
             textTransform: "uppercase",
@@ -66,12 +63,11 @@ export const AgentCard = ({ insight }: { insight: AgentInsight }) => {
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
           <span
             style={{
-              fontSize: "0.64rem",
+              fontSize: "0.70rem",
               fontWeight: 600,
               letterSpacing: "0.08em",
               textTransform: "uppercase",
               padding: "0.2rem 0.5rem",
-              borderRadius: "9999px",
               border: `1px solid ${cfg.border}`,
               color: cfg.color,
               background: `${cfg.color}18`,
@@ -79,17 +75,17 @@ export const AgentCard = ({ insight }: { insight: AgentInsight }) => {
           >
             {cfg.label}
           </span>
-          <span style={{ fontSize: "0.7rem", color: "var(--text-500)" }}>{timestamp}</span>
+          <span style={{ fontSize: "0.75rem", color: "var(--text-500)" }}>{timestamp}</span>
         </div>
       </div>
 
       {/* Content */}
       <p
         style={{
-          fontSize: "0.84rem",
+          fontSize: "0.9rem",
           fontWeight: 500,
           color: "var(--text-200)",
-          margin: "0 0 0.4rem",
+          margin: "0 0 0.5rem",
           lineHeight: 1.5,
         }}
       >
@@ -97,7 +93,7 @@ export const AgentCard = ({ insight }: { insight: AgentInsight }) => {
       </p>
       <p
         style={{
-          fontSize: "0.78rem",
+          fontSize: "0.82rem",
           color: "var(--text-400)",
           margin: 0,
           lineHeight: 1.55,

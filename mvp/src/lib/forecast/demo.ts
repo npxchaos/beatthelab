@@ -131,7 +131,7 @@ const scenario = runScenarioForecast(
 
 console.log('\n  Top movers:');
 for (const mover of scenario.topMovers) {
-  const arrow = mover.direction === 'UP' ? '↑' : '↓';
+  const arrow = mover.direction === 'UP' ? '(+)' : '(-)';
   const delta = (mover.championDelta * 100).toFixed(2);
   const sign = mover.direction === 'UP' ? '+' : '';
   console.log(`  ${arrow} ${mover.teamId.padEnd(8)} Champion prob: ${sign}${delta}%`);
@@ -142,4 +142,4 @@ const braScenario = scenario.scenario.teams['BRA'];
 console.log(`\n  BRA baseline champion prob: ${formatProb(braBaseline?.championProb ?? 0)}`);
 console.log(`  BRA scenario champion prob: ${formatProb(braScenario?.championProb ?? 0)}`);
 
-console.log('\n✅ All checks passed!\n');
+console.log('\n[PASS] All checks passed!\n');

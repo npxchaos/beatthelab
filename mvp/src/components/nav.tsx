@@ -20,8 +20,8 @@ export const Navigation = () => {
         position: "sticky",
         top: 0,
         zIndex: 50,
-        backgroundColor: "#000",
-        borderBottom: "1px solid #18181b",
+        backgroundColor: "var(--surface-0)",
+        borderBottom: "1px solid var(--border-subtle)",
       }}
     >
       <div
@@ -29,7 +29,7 @@ export const Navigation = () => {
           margin: "0 auto",
           maxWidth: "80rem",
           padding: "0 1.5rem",
-          height: "56px",
+          height: "64px",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -38,7 +38,7 @@ export const Navigation = () => {
       >
         {/* Logo */}
         <Link href="/" style={{ display: "flex", alignItems: "center", gap: "0.7rem", textDecoration: "none" }}>
-          {/* Skewed lime mark */}
+          {/* Skewed cyan mark */}
           <span
             style={{
               display: "flex",
@@ -46,7 +46,7 @@ export const Navigation = () => {
               justifyContent: "center",
               width: "30px",
               height: "30px",
-              background: "#a3e635",
+              background: "var(--cyan-vivid)",
               transform: "skewX(-10deg)",
               flexShrink: 0,
             }}
@@ -54,10 +54,10 @@ export const Navigation = () => {
             <span
               style={{
                 transform: "skewX(10deg)",
-                fontSize: "0.72rem",
+                fontSize: "0.85rem",
                 fontWeight: 900,
                 fontStyle: "italic",
-                color: "#000",
+                color: "var(--surface-0)",
                 fontFamily: "var(--font-sans)",
                 letterSpacing: "-0.02em",
                 lineHeight: 1,
@@ -67,26 +67,26 @@ export const Navigation = () => {
             </span>
           </span>
           {/* Wordmark */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "0px", lineHeight: 1 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "2px", lineHeight: 1 }}>
             <span
               style={{
-                fontSize: "0.68rem",
+                fontSize: "0.82rem",
                 fontWeight: 900,
                 fontStyle: "italic",
                 letterSpacing: "0.08em",
                 textTransform: "uppercase",
-                color: "#a3e635",
+                color: "var(--cyan-vivid)",
               }}
             >
               Prediction Lab
             </span>
             <span
               style={{
-                fontSize: "0.58rem",
-                fontWeight: 500,
-                letterSpacing: "0.06em",
+                fontSize: "0.68rem",
+                fontWeight: 600,
+                letterSpacing: "0.08em",
                 textTransform: "uppercase",
-                color: "#52525b",
+                color: "var(--text-400)",
               }}
             >
               World Cup 2026
@@ -95,7 +95,7 @@ export const Navigation = () => {
         </Link>
 
         {/* Nav links */}
-        <nav style={{ display: "flex", alignItems: "center", gap: "0" }}>
+        <nav style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
           {NAV_ITEMS.map((item) => {
             const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
             const isBeatTheLab = item.href === "/predict";
@@ -108,18 +108,18 @@ export const Navigation = () => {
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
-                    padding: "0.3rem 0.9rem",
-                    background: active ? "#a3e635" : "transparent",
-                    border: `1px solid ${active ? "#a3e635" : "rgba(163,230,53,0.35)"}`,
-                    color: active ? "#000" : "#a3e635",
-                    fontSize: "0.7rem",
+                    padding: "0.45rem 1.1rem",
+                    background: active ? "var(--cyan-vivid)" : "transparent",
+                    border: `1px solid ${active ? "var(--cyan-vivid)" : "var(--cyan-soft)"}`,
+                    color: active ? "var(--surface-0)" : "var(--cyan-vivid)",
+                    fontSize: "0.78rem",
                     fontWeight: 900,
                     fontStyle: "italic",
                     letterSpacing: "0.06em",
                     textTransform: "uppercase",
                     textDecoration: "none",
                     transform: "skewX(-8deg)",
-                    marginLeft: "0.75rem",
+                    marginLeft: "1rem",
                     transition: "all 0.12s ease",
                   }}
                 >
@@ -135,15 +135,15 @@ export const Navigation = () => {
                 key={item.href}
                 href={item.href}
                 style={{
-                  padding: "0.5rem 0.75rem",
-                  fontSize: "0.72rem",
+                  padding: "0.6rem 0.9rem",
+                  fontSize: "0.82rem",
                   fontWeight: active ? 700 : 500,
-                  letterSpacing: "0.06em",
+                  letterSpacing: "0.04em",
                   textTransform: "uppercase",
-                  color: active ? "#a3e635" : "#71717a",
+                  color: active ? "var(--cyan-vivid)" : "var(--text-300)",
                   textDecoration: "none",
                   transition: "color 0.12s ease",
-                  borderBottom: active ? "2px solid #a3e635" : "2px solid transparent",
+                  borderBottom: active ? "2px solid var(--cyan-vivid)" : "2px solid transparent",
                 }}
               >
                 {item.label}

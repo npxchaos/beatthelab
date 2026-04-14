@@ -3,10 +3,10 @@ import Link from "next/link";
 export const Footer = () => (
   <footer
     style={{
-      borderTop: "1px solid #18181b",
+      borderTop: "1px solid var(--border-subtle)",
       marginTop: "5rem",
       padding: "2.5rem 1.5rem",
-      background: "#000",
+      background: "var(--surface-0)",
     }}
   >
     <div
@@ -23,45 +23,45 @@ export const Footer = () => (
       {/* Brand block */}
       <div style={{ maxWidth: "320px" }}>
         {/* Logo mark row */}
-        <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "1rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "1.2rem" }}>
           <span
             style={{
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
-              width: "26px",
-              height: "26px",
-              background: "#a3e635",
+              width: "28px",
+              height: "28px",
+              background: "var(--cyan-vivid)",
               transform: "skewX(-10deg)",
               flexShrink: 0,
             }}
           >
-            <span style={{ transform: "skewX(10deg)", fontSize: "0.65rem", fontWeight: 900, fontStyle: "italic", color: "#000" }}>
+            <span style={{ transform: "skewX(10deg)", fontSize: "0.8rem", fontWeight: 900, fontStyle: "italic", color: "var(--surface-0)" }}>
               WX
             </span>
           </span>
           <span
             style={{
-              fontSize: "0.68rem",
+              fontSize: "0.82rem",
               fontWeight: 900,
               fontStyle: "italic",
               letterSpacing: "0.08em",
               textTransform: "uppercase",
-              color: "#a3e635",
+              color: "var(--cyan-vivid)",
             }}
           >
             Prediction Lab
           </span>
         </div>
 
-        <p style={{ fontSize: "0.75rem", color: "var(--text-400)", lineHeight: 1.7, margin: "0 0 0.6rem" }}>
+        <p style={{ fontSize: "0.82rem", color: "var(--text-400)", lineHeight: 1.7, margin: "0 0 0.8rem" }}>
           Independent football intelligence platform. Not affiliated with FIFA
           or any national federation. All forecasts are algorithmic models for
           informational purposes only.
         </p>
-        <p style={{ fontSize: "0.7rem", color: "var(--text-500)", margin: 0 }}>
+        <p style={{ fontSize: "0.78rem", color: "var(--text-500)", margin: 0 }}>
           Data:{" "}
-          <a href="https://www.football-data.org" target="_blank" rel="noopener noreferrer" style={{ color: "var(--lime-vivid)" }}>
+          <a href="https://www.football-data.org" target="_blank" rel="noopener noreferrer" style={{ color: "var(--cyan-vivid)", textDecoration: "none" }}>
             football-data.org
           </a>
           {" "}· Powered by Wand AI
@@ -69,16 +69,16 @@ export const Footer = () => (
       </div>
 
       {/* Links */}
-      <div style={{ display: "flex", gap: "3.5rem" }}>
+      <div style={{ display: "flex", gap: "4.5rem" }}>
         <div>
           <p
             style={{
-              fontSize: "0.62rem",
+              fontSize: "0.72rem",
               fontWeight: 800,
               letterSpacing: "0.14em",
               textTransform: "uppercase",
-              color: "var(--text-100)",
-              marginBottom: "0.9rem",
+              color: "var(--text-200)",
+              marginBottom: "1.2rem",
               fontStyle: "italic",
             }}
           >
@@ -92,8 +92,8 @@ export const Footer = () => (
             { label: "Scenarios",     href: "/scenario" },
             { label: "Agent Feed",    href: "/agent-feed" },
           ].map(({ label, href }) => (
-            <p key={label} style={{ margin: "0 0 0.45rem" }}>
-              <Link href={href} style={{ fontSize: "0.78rem", color: "var(--text-400)", textDecoration: "none" }}>
+            <p key={label} style={{ margin: "0 0 0.65rem" }}>
+              <Link href={href} style={{ fontSize: "0.82rem", color: "var(--text-400)", textDecoration: "none" }}>
                 {label}
               </Link>
             </p>
@@ -103,19 +103,19 @@ export const Footer = () => (
         <div>
           <p
             style={{
-              fontSize: "0.62rem",
+              fontSize: "0.72rem",
               fontWeight: 800,
               letterSpacing: "0.14em",
               textTransform: "uppercase",
-              color: "var(--text-100)",
-              marginBottom: "0.9rem",
+              color: "var(--text-200)",
+              marginBottom: "1.2rem",
               fontStyle: "italic",
             }}
           >
             Coming Soon
           </p>
           {["Copa América 2027", "UEFA Euro 2028", "Club World Cup", "More Tournaments"].map((label) => (
-            <p key={label} style={{ margin: "0 0 0.45rem", fontSize: "0.78rem", color: "var(--text-500)" }}>
+            <p key={label} style={{ margin: "0 0 0.65rem", fontSize: "0.82rem", color: "var(--text-500)" }}>
               {label}
             </p>
           ))}
@@ -126,21 +126,21 @@ export const Footer = () => (
     {/* Bottom bar */}
     <div
       style={{
-        margin: "2rem auto 0",
+        margin: "3rem auto 0",
         maxWidth: "80rem",
-        borderTop: "1px solid #18181b",
-        paddingTop: "1.25rem",
+        borderTop: "1px solid var(--border-subtle)",
+        paddingTop: "1.5rem",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
         flexWrap: "wrap",
-        gap: "0.5rem",
+        gap: "1rem",
       }}
     >
-      <span style={{ fontSize: "0.68rem", color: "var(--text-500)", fontStyle: "italic" }}>
+      <span style={{ fontSize: "0.75rem", color: "var(--text-500)", fontStyle: "italic" }}>
         © 2026 Global Football Prediction Lab. Built with Wand.
       </span>
-      <span style={{ fontSize: "0.68rem", color: "var(--text-500)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+      <span style={{ fontSize: "0.72rem", color: "var(--text-500)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
         Independent · Unaffiliated · Algorithmic
       </span>
     </div>
