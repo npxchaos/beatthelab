@@ -1,0 +1,1021 @@
+import React, { useState } from 'react';
+import {
+Trophy, Home, User, BrainCircuit, Activity, Lock, CheckCircle2,
+XCircle, Zap, TrendingUp, Shield, BarChart3, ChevronRight, PlayCircle,
+Users, Target, Award, Network, Globe, FastForward, Flag
+} from 'lucide-react';
+
+// --- MOCK DATA (Simulating local JSON db) ---
+const INITIAL_USERS = [
+{ id: 'u1', username: 'AlexTheOracle', points: 45, badges: ['Perfect Matchday'], streak: 3 },
+{ id: 'u2', username: 'FootyStat', points: 38, badges: ['Beat the Lab'], streak: 1 },
+{ id: 'u3', username: 'WandStakeholder', points: 32, badges: [], streak: 0 },
+{ id: 'u4', username: 'LabBot_v2', points: 42, badges: ['System Core'], streak: 4, isLab: true },
+];
+
+const INITIAL_MATCHES = [
+{ id: 'm1', home: 'Brazil', away: 'Argentina', status: 'upcoming', result: null, time: '20:00' },
+{ id: 'm2', home: 'France', away: 'England', status: 'upcoming', result: null, time: '20:00' },
+{ id: 'm3', home: 'Spain', away: 'Germany', status: 'upcoming', result: null, time: '22:00' },
+{ id: 'm4', home: 'Portugal', away: 'Italy', status: 'upcoming', result: null, time: '22:00' }
+];
+
+const TOURNAMENT_QUESTIONS = [
+{ id: 'q1', title: 'Tournament Champion', type: 'team', icon: Trophy, points: 20, options: ['Brazil', 'France',
+'Argentina', 'England', 'Spain', 'Germany', 'Portugal'] },
+{ id: 'q2', title: 'Runner-up (Finalist)', type: 'team', icon: Flag, points: 15, options: ['Brazil', 'France',
+'Argentina', 'England', 'Spain', 'Germany', 'Portugal'] },
+{ id: 'q3', title: 'Golden Boot (Top Scorer)', type: 'player', icon: Target, points: 15, options: ['Kylian Mbappé',
+'Harry Kane', 'Vinícius Júnior', 'Lionel Messi', 'Álvaro Morata', 'Jude Bellingham'] },
+{ id: 'q4', title: 'Golden Ball (Best Player)', type: 'player', icon: Award, points: 15, options: ['Kylian Mbappé',
+'Jude Bellingham', 'Rodri', 'Lionel Messi', 'Kevin De Bruyne'] },
+{ id: 'q5', title: 'Breakout Player', type: 'player', icon: Zap, points: 10, options: ['Lamine Yamal', 'Endrick', 'Jamal
+Musiala', 'Arda Güler', 'João Neves'] }
+];
+
+const AGENT_SYSTEMS = [
+{ id: 'a1', name: 'Strength Agent', icon: Activity, desc: 'Evaluates team quality, recent form, and momentum
+differentials.' },
+{ id: 'a2', name: 'Risk Agent', icon: Shield, desc: 'Surfaces confidence levels, volatility, and uncertainty in
+matchups.' },
+{ id: 'a3', name: 'Player Signal Agent', icon: User, desc: 'Tracks expected scorers, card risks, and key player
+availability.' },
+{ id: 'a4', name: 'Scenario Agent', icon: Target, desc: 'Models alternate outcomes, tactical matchups, and 10,000+
+simulation pathways.' },
+{ id: 'a5', name: 'Narrative Agent', icon: TrendingUp, desc: 'Explains complex prediction logic in plain, accessible
+language.' },
+{ id: 'a6', name: 'Schedule Agent', icon: Lock, desc: 'Interprets bracket progression, rest advantages, and fixture
+context.' }
+];
+
+const LAB_MATCH_PREDICTIONS = {
+'m1': { home: 2, away: 1, reasoning: "Strength Agent: Brazil's home momentum outweighs Argentina's transitional phase."
+},
+'m2': { home: 1, away: 1, reasoning: "Risk Agent: High volatility. Both teams show strong defensive blocks in recent
+metrics." },
+'m3': { home: 0, away: 2, reasoning: "Player Signal Agent: Germany's midfield progression metrics suggest they will
+dominate possession." },
+'m4': { home: 2, away: 0, reasoning: "Scenario Agent: Portugal's wing-backs create overloads that Italy's current
+formation struggles against." }
+};
+
+const LAB_TOURNAMENT_PREDICTIONS = {
+'q1': { pick: 'France', prob: '32%', agent: 'Scenario Agent', reasoning: 'Squad depth and structural integrity in
+knockout formats outscore other favorites across 10,000 simulations.' },
+'q2': { pick: 'Brazil', prob: '24%', agent: 'Strength Agent', reasoning: 'Favorable pathway probabilities suggest a high
+likelihood of reaching the final, but slight tactical vulnerability against European blocks.' },
+'q3': { pick: 'Kylian Mbappé', prob: '41%', agent: 'Player Signal Agent', reasoning: 'Expected goal (xG) generation path
+is highest based on France\'s projected deep progression.' },
+'q4': { pick: 'Jude Bellingham', prob: '29%', agent: 'Narrative Agent', reasoning: 'High media narrative correlation
+plus central role in England\'s progressive play maps to historical Golden Ball winners.' },
+'q5': { pick: 'Lamine Yamal', prob: '28%', agent: 'Narrative Agent', reasoning: 'High ceiling for impact minutes and
+progressive carries if Spain plays a possession-heavy transitional game.' }
+};
+
+// --- CORE APP COMPONENT ---
+export default function GlobalFootballPredictionLab() {
+// Navigation & View State
+const [currentUser, setCurrentUser] = useState(null);
+const [view, setView] = useState('home');
+const [predictTab, setPredictTab] = useState('matches');
+const [demoTab, setDemoTab] = useState('matches');
+
+// Data State
+const [users, setUsers] = useState(INITIAL_USERS);
+const [matches, setMatches] = useState(INITIAL_MATCHES);
+
+// User Prediction State
+const [userPredictions, setUserPredictions] = useState({});
+const [userOutrights, setUserOutrights] = useState({});
+
+// Simulation State
+const [matchdayState, setMatchdayState] = useState('pre-match');
+const [tournamentState, setTournamentState] = useState('pre-tournament');
+const [scores, setScores] = useState([]);
+const [tournamentResults, setTournamentResults] = useState({});
+const [tournamentScores, setTournamentScores] = useState([]);
+
+// --- MOCK AUTH ---
+const handleLogin = (e) => {
+e.preventDefault();
+const username = e.target.username.value.trim();
+if (!username) return;
+
+const existing = users.find(u => u.username.toLowerCase() === username.toLowerCase());
+if (existing) {
+setCurrentUser(existing);
+} else {
+const newUser = { id: `u_${Date.now()}`, username, points: 0, badges: [], streak: 0 };
+setUsers([...users, newUser]);
+setCurrentUser(newUser);
+}
+setView('predict');
+};
+
+const handleLogout = () => {
+setCurrentUser(null);
+setView('home');
+setUserPredictions({});
+setUserOutrights({});
+setScores([]);
+setTournamentResults({});
+setTournamentScores([]);
+setMatchdayState('pre-match');
+setTournamentState('pre-tournament');
+setMatches(INITIAL_MATCHES);
+};
+
+// --- PREDICTION LOGIC ---
+const updatePrediction = (matchId, team, value) => {
+if (matchdayState !== 'pre-match') return;
+setUserPredictions(prev => ({
+...prev,
+[matchId]: { ...prev[matchId], [team]: value }
+}));
+};
+
+const updateOutright = (questionId, value) => {
+if (tournamentState !== 'pre-tournament') return;
+setUserOutrights(prev => ({
+...prev,
+[questionId]: value
+}));
+};
+
+// --- SCORING ENGINE ---
+const calculatePoints = (pred, actual) => {
+if (!pred || pred.home === '' || pred.away === '') return 0;
+const pH = parseInt(pred.home);
+const pA = parseInt(pred.away);
+const aH = actual.home;
+const aA = actual.away;
+
+const exact = pH === aH && pA === aA;
+const pDiff = pH - pA;
+const aDiff = aH - aA;
+const correctOutcome = (pDiff > 0 && aDiff > 0) || (pDiff < 0 && aDiff < 0) || (pDiff===0 && aDiff===0); if (exact)
+    return 5; if (correctOutcome) return 3; return 0; }; // --- ADMIN / DEMO CONTROLS --- const simulateMatchday=()=> {
+    const finishedMatches = matches.map(m => {
+    const labP = LAB_MATCH_PREDICTIONS[m.id];
+    const isLabCorrect = Math.random() > 0.4;
+    return {
+    ...m,
+    status: 'finished',
+    result: {
+    home: isLabCorrect ? labP.home : Math.floor(Math.random() * 4),
+    away: isLabCorrect ? labP.away : Math.floor(Math.random() * 4),
+    }
+    };
+    });
+    setMatches(finishedMatches);
+
+    let matchdayPoints = 0;
+    let exactHits = 0;
+    const newScores = finishedMatches.map(m => {
+    const pts = calculatePoints(userPredictions[m.id], m.result);
+    if (pts === 5) exactHits++;
+    matchdayPoints += pts;
+    return { matchId: m.id, points: pts, exact: pts === 5 };
+    });
+    setScores(newScores);
+
+    let labPoints = 0;
+    finishedMatches.forEach(m => {
+    labPoints += calculatePoints(LAB_MATCH_PREDICTIONS[m.id], m.result);
+    });
+
+    let earnedBadges = [];
+    if (matchdayPoints > labPoints) earnedBadges.push('Beat the Lab');
+    if (exactHits > 1) earnedBadges.push('Upset Hunter');
+    if (matchdayPoints === finishedMatches.length * 5) earnedBadges.push('Perfect Matchday');
+
+    setUsers(prev => prev.map(u => {
+    if (u.isLab) return { ...u, points: u.points + labPoints };
+    if (currentUser && u.id === currentUser.id) {
+    const updatedUser = {
+    ...u,
+    points: u.points + matchdayPoints,
+    badges: [...new Set([...u.badges, ...earnedBadges])]
+    };
+    setCurrentUser(updatedUser);
+    return updatedUser;
+    }
+    return { ...u, points: u.points + Math.floor(Math.random() * 12) };
+    }));
+
+    setMatchdayState('finished');
+    if (view !== 'profile') setView('profile');
+    };
+
+    const simulateTournamentEnd = () => {
+    const actualOutcomes = {};
+    TOURNAMENT_QUESTIONS.forEach(q => {
+    const labPick = LAB_TOURNAMENT_PREDICTIONS[q.id].pick;
+    const isLabCorrect = Math.random() > 0.35;
+    actualOutcomes[q.id] = isLabCorrect ? labPick : q.options[Math.floor(Math.random() * q.options.length)];
+    });
+    setTournamentResults(actualOutcomes);
+
+    let userTourneyPoints = 0;
+    const newTourneyScores = [];
+
+    TOURNAMENT_QUESTIONS.forEach(q => {
+    const earned = (userOutrights[q.id] === actualOutcomes[q.id]) ? q.points : 0;
+    userTourneyPoints += earned;
+    newTourneyScores.push({ qId: q.id, points: earned });
+    });
+    setTournamentScores(newTourneyScores);
+
+    let labTourneyPoints = 0;
+    TOURNAMENT_QUESTIONS.forEach(q => {
+    if (LAB_TOURNAMENT_PREDICTIONS[q.id].pick === actualOutcomes[q.id]) labTourneyPoints += q.points;
+    });
+
+    let earnedBadges = [];
+    if (userTourneyPoints > labTourneyPoints) earnedBadges.push('Tournament Master');
+    if (userTourneyPoints > 0) earnedBadges.push('Visionary');
+
+    setUsers(prev => prev.map(u => {
+    if (u.isLab) return { ...u, points: u.points + labTourneyPoints };
+    if (currentUser && u.id === currentUser.id) {
+    const updatedUser = {
+    ...u,
+    points: u.points + userTourneyPoints,
+    badges: [...new Set([...u.badges, ...earnedBadges])]
+    };
+    setCurrentUser(updatedUser);
+    return updatedUser;
+    }
+    return { ...u, points: u.points + Math.floor(Math.random() * 30) };
+    }));
+
+    setTournamentState('finished');
+    if (view !== 'profile') setView('profile');
+    };
+
+    const resetDemo = () => {
+    setMatches(INITIAL_MATCHES);
+    setUserPredictions({});
+    setUserOutrights({});
+    setScores([]);
+    setTournamentResults({});
+    setTournamentScores([]);
+    setMatchdayState('pre-match');
+    setTournamentState('pre-tournament');
+    setView('predict');
+    };
+
+    // --- RENDERERS ---
+    const renderNav = () => (
+    <nav className="bg-black border-b-2 border-zinc-900 p-4 sticky top-0 z-50">
+        <div className="max-w-6xl mx-auto flex justify-between items-center">
+            <div className="flex items-center gap-3 cursor-pointer group" onClick={()=> setView('home')}>
+                <div className="bg-lime-400 p-1.5 transform -skew-x-12 group-hover:bg-white transition-colors">
+                    <BrainCircuit className="text-black w-6 h-6" />
+                </div>
+                <span
+                    className="text-white font-black tracking-tighter uppercase text-lg italic hidden sm:block">Prediction
+                    Lab</span>
+                <span className="text-white font-black tracking-tighter uppercase text-lg italic sm:hidden">Lab</span>
+            </div>
+
+            {currentUser ? (
+            <div
+                className="flex items-center gap-4 sm:gap-8 text-sm font-black uppercase tracking-widest text-zinc-400">
+                <button onClick={()=> setView('predict')} className={`hover:text-white transition-colors ${view ===
+                    'predict' && 'text-lime-400'}`}>Predict</button>
+                <button onClick={()=> setView('leaderboard')} className={`hover:text-white transition-colors ${view ===
+                    'leaderboard' && 'text-lime-400'}`}>Rank</button>
+                <button onClick={()=> setView('demo')} className={`hover:text-white transition-colors ${view === 'demo'
+                    && 'text-lime-400'}`}>Agents</button>
+                <button onClick={()=> setView('profile')} className={`flex items-center gap-2 hover:text-white
+                    transition-colors ${view === 'profile' && 'text-lime-400'}`}>
+                    <span className="hidden sm:block">{currentUser.username}</span>
+                    <div
+                        className="w-8 h-8 bg-zinc-900 text-white flex items-center justify-center transform -skew-x-6">
+                        <User className="w-4 h-4" />
+                    </div>
+                </button>
+            </div>
+            ) : (
+            <div className="flex items-center gap-6 text-sm font-black uppercase tracking-widest">
+                <button onClick={()=> setView('leaderboard')} className={`hover:text-white transition-colors ${view ===
+                    'leaderboard' ? 'text-lime-400' : 'text-zinc-400'}`}>Rank</button>
+                <button onClick={()=> setView('demo')} className={`hover:text-white transition-colors ${view === 'demo'
+                    ? 'text-lime-400' : 'text-zinc-400'}`}>Agents</button>
+                <button onClick={()=> setView('home')} className="bg-white text-black px-5 py-2 transform -skew-x-12
+                    hover:bg-lime-400 transition-colors">
+                    <span className="transform skew-x-12 block">Join</span>
+                </button>
+            </div>
+            )}
+        </div>
+    </nav>
+    );
+
+    const renderHome = () => (
+    <div className="max-w-6xl mx-auto p-4 sm:p-8 space-y-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="text-center space-y-8 py-16">
+            <div
+                className="inline-flex items-center gap-2 bg-lime-400 text-black px-4 py-1.5 font-black uppercase tracking-widest text-xs transform -skew-x-12 mb-6">
+                <Activity className="w-4 h-4" /> <span className="transform skew-x-12 block">Challenge Window
+                    Open</span>
+            </div>
+            <h1
+                className="text-7xl sm:text-9xl md:text-[10rem] leading-none font-black text-white tracking-tighter uppercase italic">
+                Beat <br />
+                <span className="text-lime-400">The Lab.</span>
+            </h1>
+            <p
+                className="text-lg sm:text-2xl font-bold text-zinc-400 max-w-3xl mx-auto leading-tight uppercase tracking-tight">
+                An independent intelligence experiment. We feed data to a network of specialized AI agents. They make
+                their predictions. You make yours. Who actually knows the game?
+            </p>
+
+            {!currentUser && (
+            <div className="max-w-lg mx-auto mt-12 p-8 bg-zinc-950 border-2 border-zinc-800 transform -skew-x-3">
+                <div className="transform skew-x-3">
+                    <h3 className="text-white font-black uppercase tracking-tight text-2xl mb-6">Enter the Arena</h3>
+                    <form onSubmit={handleLogin} className="space-y-4">
+                        <input name="username" type="text" placeholder="USERNAME"
+                            className="w-full bg-black border-2 border-zinc-800 p-4 text-white font-black uppercase tracking-widest focus:outline-none focus:border-lime-400 transition-colors placeholder:text-zinc-700"
+                            required />
+                        <button type="submit"
+                            className="w-full bg-white text-black font-black uppercase tracking-widest py-4 hover:bg-lime-400 transition-colors flex justify-center items-center gap-2 group">
+                            Start Predicting
+                            <ChevronRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
+                        </button>
+                    </form>
+                </div>
+            </div>
+            )}
+        </div>
+
+        <div className="grid sm:grid-cols-3 gap-6">
+            <div className="bg-zinc-950 p-8 border border-zinc-900 hover:border-lime-400 transition-colors">
+                <Globe className="w-12 h-12 text-white mb-6 stroke-[1.5]" />
+                <h3 className="text-white font-black text-2xl uppercase tracking-tighter mb-3 italic">Predict Everything
+                </h3>
+                <p className="text-zinc-400 font-bold tracking-tight">Lock in your tournament champion, bracket, and
+                    matchday scores. Massive stakes for outrights.</p>
+            </div>
+            <div className="bg-zinc-950 p-8 border border-zinc-900 hover:border-lime-400 transition-colors cursor-pointer"
+                onClick={()=> setView('demo')}>
+                <BrainCircuit className="w-12 h-12 text-lime-400 mb-6 stroke-[1.5]" />
+                <h3 className="text-white font-black text-2xl uppercase tracking-tighter mb-3 italic">The Lab's Call
+                </h3>
+                <p className="text-zinc-400 font-bold tracking-tight">Our agent ecosystem publishes its own forecasts.
+                    Compare your gut against the machine.</p>
+            </div>
+            <div className="bg-zinc-950 p-8 border border-zinc-900 hover:border-lime-400 transition-colors cursor-pointer"
+                onClick={()=> setView('leaderboard')}>
+                <Trophy className="w-12 h-12 text-white mb-6 stroke-[1.5]" />
+                <h3 className="text-white font-black text-2xl uppercase tracking-tighter mb-3 italic">Dominate</h3>
+                <p className="text-zinc-400 font-bold tracking-tight">Earn badges, track your accuracy streak, and prove
+                    your IQ on the global leaderboard.</p>
+            </div>
+        </div>
+    </div>
+    );
+
+    const renderPredict = () => (
+    <div className="max-w-5xl mx-auto p-4 sm:p-8 animate-in fade-in duration-300">
+        <div
+            className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-12 gap-6 border-b-2 border-zinc-900 pb-8">
+            <div>
+                <h2 className="text-5xl font-black text-white uppercase tracking-tighter italic">Make Picks</h2>
+                <p className="text-zinc-400 font-bold uppercase tracking-widest mt-2">Submit before the windows lock.
+                </p>
+            </div>
+
+            {/* Prediction Tabs */}
+            <div className="flex gap-2 w-full sm:w-auto">
+                <button onClick={()=> setPredictTab('matches')}
+                    className={`flex-1 sm:flex-none px-6 py-3 font-black uppercase tracking-widest transition-colors
+                    transform -skew-x-12 ${predictTab === 'matches' ? 'bg-lime-400 text-black' : 'bg-zinc-900
+                    text-zinc-500 hover:bg-zinc-800 hover:text-white'}`}
+                    >
+                    <span className="transform skew-x-12 block">Matchday</span>
+                </button>
+                <button onClick={()=> setPredictTab('tournament')}
+                    className={`flex-1 sm:flex-none px-6 py-3 font-black uppercase tracking-widest transition-colors
+                    transform -skew-x-12 ${predictTab === 'tournament' ? 'bg-white text-black' : 'bg-zinc-900
+                    text-zinc-500 hover:bg-zinc-800 hover:text-white'}`}
+                    >
+                    <span className="transform skew-x-12 block">Outrights</span>
+                </button>
+            </div>
+        </div>
+
+        {predictTab === 'matches' && (
+        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+            <div className="flex justify-between items-center mb-8">
+                <h3
+                    className="text-2xl font-black text-white uppercase tracking-tighter italic flex items-center gap-3">
+                    <Zap className="w-8 h-8 text-lime-400" /> Matchday 1
+                </h3>
+                <div className={`font-black tracking-widest px-3 py-1 uppercase text-sm ${matchdayState==='pre-match'
+                    ? 'bg-lime-400 text-black' : 'bg-red-500 text-white' }`}>
+                    {matchdayState === 'pre-match' ? 'Open' : 'Locked'}
+                </div>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-6">
+                {matches.map(match => (
+                <div key={match.id} className="bg-black border-2 border-zinc-900 flex flex-col relative group">
+                    {/* Status Bar */}
+                    <div className="bg-zinc-950 px-4 py-3 border-b-2 border-zinc-900 flex justify-between items-center">
+                        <span className="text-xs font-black uppercase tracking-widest text-zinc-500">{match.time}
+                            KO</span>
+                        {matchdayState !== 'pre-match' &&
+                        <Lock className="w-4 h-4 text-red-500" />}
+                    </div>
+
+                    {/* Match Area */}
+                    <div className="p-6 sm:p-8 flex-1 flex flex-col justify-center">
+                        <div className="flex justify-between items-center gap-6">
+                            <div
+                                className="flex-1 text-right text-2xl font-black uppercase tracking-tighter text-white break-words">
+                                {match.home}</div>
+
+                            <div className="flex items-center gap-2 shrink-0">
+                                <input type="number" min="0" max="15" disabled={matchdayState !=='pre-match' }
+                                    value={userPredictions[match.id]?.home ?? '' } onChange={(e)=>
+                                updatePrediction(match.id, 'home', e.target.value)}
+                                className="w-14 h-16 sm:w-16 sm:h-20 bg-zinc-950 border-2 border-zinc-800 text-center
+                                text-3xl font-black text-white focus:border-lime-400 focus:outline-none
+                                disabled:opacity-50 transition-colors"
+                                placeholder="-"
+                                />
+                                <span className="text-zinc-700 font-black text-2xl">:</span>
+                                <input type="number" min="0" max="15" disabled={matchdayState !=='pre-match' }
+                                    value={userPredictions[match.id]?.away ?? '' } onChange={(e)=>
+                                updatePrediction(match.id, 'away', e.target.value)}
+                                className="w-14 h-16 sm:w-16 sm:h-20 bg-zinc-950 border-2 border-zinc-800 text-center
+                                text-3xl font-black text-white focus:border-lime-400 focus:outline-none
+                                disabled:opacity-50 transition-colors"
+                                placeholder="-"
+                                />
+                            </div>
+
+                            <div
+                                className="flex-1 text-left text-2xl font-black uppercase tracking-tighter text-white break-words">
+                                {match.away}</div>
+                        </div>
+                    </div>
+
+                    {/* Post-Match / Lab Info */}
+                    {matchdayState !== 'pre-match' && (
+                    <div className="bg-zinc-900 border-t-2 border-zinc-800 p-4 flex flex-col gap-3">
+                        <div className="flex justify-between items-center">
+                            <span
+                                className="text-xs font-black tracking-widest uppercase text-lime-400 flex items-center gap-2">
+                                <BrainCircuit className="w-4 h-4" /> Lab Pick
+                            </span>
+                            <strong className="text-white font-black text-xl">{LAB_MATCH_PREDICTIONS[match.id].home} :
+                                {LAB_MATCH_PREDICTIONS[match.id].away}</strong>
+                        </div>
+                        {matchdayState === 'finished' && (
+                        <div className="flex justify-between items-center pt-3 border-t border-zinc-800">
+                            <span className="text-xs font-black tracking-widest uppercase text-zinc-500">Actual
+                                Result</span>
+                            <div className="flex items-center gap-4">
+                                <strong className="text-white font-black text-xl">{match.result.home} :
+                                    {match.result.away}</strong>
+                                <span className={`px-2 py-1 text-xs font-black tracking-widest uppercase
+                                    ${scores.find(s=>s.matchId===match.id)?.points > 0 ? 'bg-lime-400 text-black' :
+                                    'bg-zinc-800 text-zinc-500'}`}>
+                                    +{scores.find(s=>s.matchId===match.id)?.points || 0} PTS
+                                </span>
+                            </div>
+                        </div>
+                        )}
+                    </div>
+                    )}
+                </div>
+                ))}
+            </div>
+        </div>
+        )}
+
+        {predictTab === 'tournament' && (
+        <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-300">
+            <div className="flex justify-between items-center mb-8">
+                <h3
+                    className="text-2xl font-black text-white uppercase tracking-tighter italic flex items-center gap-3">
+                    <Globe className="w-8 h-8 text-white" /> Outrights
+                </h3>
+                <div className={`font-black tracking-widest px-3 py-1 uppercase text-sm
+                    ${tournamentState==='pre-tournament' ? 'bg-white text-black' : 'bg-red-500 text-white' }`}>
+                    {tournamentState === 'pre-tournament' ? 'Open' : 'Locked'}
+                </div>
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-6">
+                {TOURNAMENT_QUESTIONS.map(q => {
+                const QIcon = q.icon;
+                const isLocked = tournamentState !== 'pre-tournament';
+                const actualResult = tournamentResults[q.id];
+                const labPick = LAB_TOURNAMENT_PREDICTIONS[q.id].pick;
+                const userPick = userOutrights[q.id];
+                const pointsEarned = tournamentScores.find(s => s.qId === q.id)?.points || 0;
+
+                return (
+                <div key={q.id} className="bg-black border-2 border-zinc-900 flex flex-col">
+                    <div className="bg-zinc-950 p-4 border-b-2 border-zinc-900 flex justify-between items-start">
+                        <div>
+                            <QIcon className="w-6 h-6 text-white mb-2" />
+                            <span className="text-sm font-black uppercase tracking-tighter text-white">{q.title}</span>
+                        </div>
+                        <span className="bg-zinc-800 text-white text-xs px-2 py-1 font-black tracking-widest uppercase">
+                            {q.points} PTS
+                        </span>
+                    </div>
+                    <div className="p-6 flex-1 flex flex-col justify-center bg-zinc-950/50">
+                        <select
+                            className="w-full bg-black border-2 border-zinc-800 p-4 text-white font-black uppercase tracking-tight focus:outline-none focus:border-white disabled:opacity-50 appearance-none cursor-pointer"
+                            disabled={isLocked} value={userPick || '' } onChange={(e)=> updateOutright(q.id,
+                            e.target.value)}
+                            >
+                            <option value="" disabled>SELECT PICK...</option>
+                            {q.options.map(opt => (
+                            <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                        </select>
+
+                        {isLocked && (
+                        <div className="mt-6 space-y-4">
+                            <div
+                                className="bg-zinc-900 p-4 flex justify-between items-center border-l-4 border-lime-400">
+                                <span className="text-xs font-black tracking-widest uppercase text-zinc-400">Lab
+                                    Pick</span>
+                                <strong className="text-white font-black uppercase">{labPick}</strong>
+                            </div>
+                            {tournamentState === 'finished' && (
+                            <div className="bg-zinc-900 p-4 flex justify-between items-center border-l-4 border-white">
+                                <span
+                                    className="text-xs font-black tracking-widest uppercase text-zinc-400">Actual</span>
+                                <strong className="text-white font-black uppercase">{actualResult}</strong>
+                            </div>
+                            )}
+                            {tournamentState === 'finished' && (
+                            <div className={`mt-4 text-center font-black uppercase tracking-widest py-3 ${pointsEarned>
+                                0 ? 'bg-lime-400 text-black' : 'bg-zinc-900 text-zinc-600'}`}>
+                                {pointsEarned > 0 ? `+${pointsEarned} PTS` : 'NO POINTS'}
+                            </div>
+                            )}
+                        </div>
+                        )}
+                    </div>
+                </div>
+                );
+                })}
+            </div>
+        </div>
+        )}
+    </div>
+    );
+
+    const renderLeaderboard = () => {
+    const sortedUsers = [...users].sort((a, b) => b.points - a.points);
+
+    return (
+    <div className="max-w-4xl mx-auto p-4 sm:p-8 animate-in fade-in duration-300">
+        <div className="mb-12 border-b-2 border-zinc-900 pb-8">
+            <h2 className="text-5xl font-black text-white uppercase tracking-tighter italic">Global Rank</h2>
+            <p className="text-zinc-400 font-bold uppercase tracking-widest mt-2">Live Standings.</p>
+        </div>
+
+        <div className="bg-black border-2 border-zinc-900 shadow-2xl">
+            <div
+                className="grid grid-cols-12 bg-zinc-950 px-4 sm:px-8 py-4 text-xs font-black text-zinc-500 uppercase tracking-widest border-b-2 border-zinc-900">
+                <div className="col-span-2 sm:col-span-1 text-center">Pos</div>
+                <div className="col-span-6 sm:col-span-5">Player</div>
+                <div className="col-span-4 sm:col-span-4 hidden sm:block">Hardware</div>
+                <div className="col-span-4 sm:col-span-2 text-right">Pts</div>
+            </div>
+
+            <div className="divide-y-2 divide-zinc-900">
+                {sortedUsers.map((user, idx) => {
+                const isMe = currentUser && user.id === currentUser.id;
+                const rank = idx + 1;
+                return (
+                <div key={user.id} className={`grid grid-cols-12 items-center px-4 sm:px-8 py-6 transition-colors ${isMe
+                    ? 'bg-zinc-900' : 'hover:bg-zinc-950' }`}>
+                    <div
+                        className="col-span-2 sm:col-span-1 text-center font-black text-xl italic text-zinc-600 flex flex-col items-center gap-1">
+                        <span className={rank <=3 ? 'text-white text-3xl' : '' }>{rank}</span>
+                    </div>
+
+                    <div className="col-span-6 sm:col-span-5 flex items-center gap-4">
+                        <div className={`w-10 h-10 flex items-center justify-center transform -skew-x-6 ${user.isLab
+                            ? 'bg-lime-400 text-black' : 'bg-white text-black' }`}>
+                            {user.isLab ?
+                            <BrainCircuit className="w-5 h-5" /> :
+                            <User className="w-5 h-5" />}
+                        </div>
+                        <div>
+                            <div
+                                className="font-black text-xl text-white uppercase tracking-tight flex items-center gap-2">
+                                {user.username}
+                                {isMe && <span
+                                    className="bg-lime-400 text-black text-[10px] px-2 py-0.5 uppercase tracking-widest transform -skew-x-12">You</span>}
+                            </div>
+                            {user.streak > 0 && <div
+                                className="text-xs font-black text-zinc-500 tracking-widest uppercase flex items-center gap-1 mt-1">
+                                <Zap className="w-3 h-3 text-lime-400" /> {user.streak} Streak
+                            </div>}
+                        </div>
+                    </div>
+
+                    <div className="col-span-4 sm:col-span-4 hidden sm:flex items-center gap-2 flex-wrap">
+                        {user.badges.map(b => (
+                        <span key={b}
+                            className="text-[10px] px-2 py-1 bg-zinc-800 text-white uppercase font-black tracking-widest border border-zinc-700">
+                            {b}
+                        </span>
+                        ))}
+                    </div>
+
+                    <div
+                        className="col-span-4 sm:col-span-2 text-right font-black text-3xl tracking-tighter text-lime-400">
+                        {user.points}
+                    </div>
+                </div>
+                );
+                })}
+            </div>
+        </div>
+    </div>
+    );
+    };
+
+    const renderProfile = () => {
+    if (!currentUser) return null;
+
+    const labUser = users.find(u => u.isLab);
+    const labPoints = labUser.points;
+    const isBeatingLab = currentUser.points > labPoints;
+
+    return (
+    <div className="max-w-6xl mx-auto p-4 sm:p-8 animate-in fade-in duration-300">
+
+        {/* Head-to-Head Hero Card */}
+        <div className="bg-lime-400 border-4 border-lime-400 p-8 sm:p-12 mb-12 relative overflow-hidden">
+            <div
+                className="absolute top-0 right-0 w-full h-full bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjgiPgo8cmVjdCB3aWR0aD0iOCIgaGVpZ2h0PSI4IiBmaWxsPSIjYTNlNjM1Ij48L3JlY3Q+CjxwYXRoIGQ9Ik0wIDBMOCA4Wk04IDBMMCA4WiIgc3Ryb2tlPSIjOTRkNTMyIiBzdHJva2Utd2lkdGg9IjEiPjwvcGF0aD4KPC9zdmc+')] opacity-20 pointer-events-none mix-blend-multiply">
+            </div>
+
+            <div className="flex flex-col md:flex-row justify-between items-center gap-12 relative z-10">
+                <div className="flex-1 text-center md:text-left">
+                    <h1 className="text-5xl sm:text-7xl font-black text-black uppercase tracking-tighter italic">
+                        {currentUser.username}</h1>
+                    <p
+                        className="text-black/70 font-black uppercase tracking-widest mt-2 flex items-center justify-center md:justify-start gap-2">
+                        <BarChart3 className="w-5 h-5" /> Global Rank: #{users.sort((a,b) => b.points -
+                        a.points).findIndex(u => u.id === currentUser.id) + 1}
+                    </p>
+                </div>
+
+                <div className="flex items-center gap-6 sm:gap-12 bg-black p-6 sm:p-8 transform -skew-x-6 shadow-2xl">
+                    <div className="text-center transform skew-x-6">
+                        <div className="text-xs font-black text-zinc-500 uppercase tracking-widest mb-2">You</div>
+                        <div className="text-6xl sm:text-7xl font-black text-white tracking-tighter">
+                            {currentUser.points}</div>
+                    </div>
+                    <div className="text-4xl sm:text-5xl font-black text-lime-400 italic transform skew-x-6">VS</div>
+                    <div className="text-center transform skew-x-6">
+                        <div
+                            className="text-xs font-black text-zinc-500 uppercase tracking-widest mb-2 flex items-center gap-1 justify-center">
+                            <BrainCircuit className="w-4 h-4" /> Lab
+                        </div>
+                        <div className="text-6xl sm:text-7xl font-black text-white tracking-tighter">{labPoints}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="mt-12 pt-6 border-t-4 border-black/10 flex justify-center md:justify-start relative z-10">
+                {isBeatingLab ? (
+                <div
+                    className="bg-black text-lime-400 px-6 py-3 font-black uppercase tracking-widest text-sm flex items-center gap-3 transform -skew-x-12 shadow-xl">
+                    <Trophy className="w-5 h-5 transform skew-x-12" /> <span
+                        className="transform skew-x-12 block">Dominating the System</span>
+                </div>
+                ) : (
+                <div
+                    className="bg-black text-white px-6 py-3 font-black uppercase tracking-widest text-sm flex items-center gap-3 transform -skew-x-12 shadow-xl">
+                    <TrendingUp className="w-5 h-5 transform skew-x-12" /> <span
+                        className="transform skew-x-12 block">Lab holds the lead. Push harder.</span>
+                </div>
+                )}
+            </div>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-12">
+            {/* Stats & History */}
+            <div className="space-y-8">
+                <h3
+                    className="text-3xl font-black text-white uppercase tracking-tighter italic border-b-2 border-zinc-900 pb-4">
+                    Performance Log
+                </h3>
+
+                {/* Matchday History */}
+                <div className="bg-black border-2 border-zinc-900 p-6 sm:p-8">
+                    <h4 className="text-sm font-black text-zinc-500 uppercase tracking-widest mb-6">Matchday Results
+                    </h4>
+                    {matchdayState === 'finished' && scores.length > 0 ? (
+                    <div className="space-y-6">
+                        {matches.map(m => {
+                        const score = scores.find(s => s.matchId === m.id);
+                        return (
+                        <div key={m.id}
+                            className="flex justify-between items-center border-b-2 border-zinc-900 pb-4 last:border-0 last:pb-0">
+                            <div className="text-white font-black uppercase tracking-tight text-lg">
+                                {m.home} v {m.away} <span
+                                    className="text-zinc-600 ml-3">({m.result.home}-{m.result.away})</span>
+                            </div>
+                            <div className={`font-black text-xl tracking-tighter ${score.points> 0 ? 'text-lime-400' :
+                                'text-zinc-700'}`}>
+                                {score.points > 0 ? `+${score.points}` : '0'}
+                            </div>
+                        </div>
+                        );
+                        })}
+                    </div>
+                    ) : (
+                    <p className="text-zinc-600 font-bold uppercase tracking-widest text-sm py-4">No match data logged.
+                    </p>
+                    )}
+                </div>
+
+                {/* Tournament History */}
+                {tournamentState === 'finished' && (
+                <div className="bg-black border-2 border-zinc-900 p-6 sm:p-8">
+                    <h4 className="text-sm font-black text-zinc-500 uppercase tracking-widest mb-6">Outright Results
+                    </h4>
+                    <div className="space-y-6">
+                        {TOURNAMENT_QUESTIONS.map(q => {
+                        const tScore = tournamentScores.find(s => s.qId === q.id);
+                        const isHit = tScore && tScore.points > 0;
+                        return (
+                        <div key={q.id}
+                            className="flex flex-col gap-2 border-b-2 border-zinc-900 pb-4 last:border-0 last:pb-0">
+                            <div className="flex justify-between font-black uppercase tracking-tight text-lg">
+                                <span className="text-white">{q.title}</span>
+                                <span className={`${isHit ? 'text-lime-400' : 'text-zinc-700' } tracking-tighter`}>
+                                    {isHit ? `+${tScore.points}` : '0'}
+                                </span>
+                            </div>
+                            <div className="text-sm font-bold uppercase tracking-widest text-zinc-500">
+                                Pick: {userOutrights[q.id] || 'N/A'} <span className="mx-2">/</span> Actual: <span
+                                    className={isHit ? 'text-lime-400' : 'text-white' }>{tournamentResults[q.id]}</span>
+                            </div>
+                        </div>
+                        );
+                        })}
+                    </div>
+                </div>
+                )}
+            </div>
+
+            {/* Badges */}
+            <div className="space-y-8">
+                <h3
+                    className="text-3xl font-black text-white uppercase tracking-tighter italic border-b-2 border-zinc-900 pb-4">
+                    Hardware
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                    {['Beat the Lab', 'Perfect Matchday', 'Upset Hunter', 'Visionary'].map(badge => {
+                    const earned = currentUser.badges.includes(badge) || (badge === 'Visionary' &&
+                    currentUser.badges.includes('Tournament Master')); // Map old badge to new
+                    return (
+                    <div key={badge} className={`p-6 border-2 flex flex-col items-center justify-center text-center
+                        gap-4 transition-all ${earned ? 'bg-zinc-900 border-white opacity-100'
+                        : 'bg-black border-zinc-900 opacity-30 grayscale' }`}>
+                        {badge === 'Beat the Lab' &&
+                        <BrainCircuit className={`w-10 h-10 ${earned ? 'text-lime-400' : 'text-zinc-600' }`} />}
+                        {badge === 'Perfect Matchday' &&
+                        <Trophy className={`w-10 h-10 ${earned ? 'text-white' : 'text-zinc-600' }`} />}
+                        {badge === 'Upset Hunter' &&
+                        <Zap className={`w-10 h-10 ${earned ? 'text-lime-400' : 'text-zinc-600' }`} />}
+                        {badge === 'Visionary' &&
+                        <Globe className={`w-10 h-10 ${earned ? 'text-white' : 'text-zinc-600' }`} />}
+                        <span className="text-sm font-black uppercase tracking-widest text-white">{badge}</span>
+                    </div>
+                    );
+                    })}
+                </div>
+            </div>
+        </div>
+
+        <div className="mt-16 text-center">
+            <button onClick={handleLogout}
+                className="text-xs font-black uppercase tracking-widest text-zinc-600 hover:text-white transition-colors">Terminate
+                Session</button>
+        </div>
+    </div>
+    );
+    };
+
+    const renderDemoMode = () => (
+    <div className="max-w-6xl mx-auto p-4 sm:p-8 animate-in fade-in duration-300">
+        <div
+            className="mb-12 border-b-2 border-zinc-900 pb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+            <div>
+                <h2 className="text-5xl font-black text-white uppercase tracking-tighter italic">Intelligence Lab</h2>
+                <p className="text-zinc-400 font-bold uppercase tracking-widest mt-2 max-w-xl leading-relaxed">
+                    The underlying logic engine. Monitor how specialized AI agents synthesize inputs to generate
+                    official forecasts.
+                </p>
+            </div>
+
+            {/* Sub-Navigation for Lab */}
+            <div className="flex gap-2 w-full md:w-auto overflow-x-auto">
+                <button onClick={()=> setDemoTab('matches')}
+                    className={`px-5 py-3 font-black uppercase tracking-widest whitespace-nowrap transition-colors
+                    transform -skew-x-12 ${demoTab === 'matches' ? 'bg-lime-400 text-black' : 'bg-zinc-900 text-zinc-500
+                    hover:bg-zinc-800 hover:text-white'}`}
+                    >
+                    <span className="transform skew-x-12 block">Matches</span>
+                </button>
+                <button onClick={()=> setDemoTab('tournament')}
+                    className={`px-5 py-3 font-black uppercase tracking-widest whitespace-nowrap transition-colors
+                    transform -skew-x-12 ${demoTab === 'tournament' ? 'bg-white text-black' : 'bg-zinc-900 text-zinc-500
+                    hover:bg-zinc-800 hover:text-white'}`}
+                    >
+                    <span className="transform skew-x-12 block">Outrights</span>
+                </button>
+                <button onClick={()=> setDemoTab('network')}
+                    className={`px-5 py-3 font-black uppercase tracking-widest whitespace-nowrap transition-colors
+                    transform -skew-x-12 ${demoTab === 'network' ? 'bg-zinc-700 text-white' : 'bg-zinc-900 text-zinc-500
+                    hover:bg-zinc-800 hover:text-white'}`}
+                    >
+                    <span className="transform skew-x-12 block">System</span>
+                </button>
+            </div>
+        </div>
+
+        {demoTab === 'matches' && (
+        <div className="space-y-6 animate-in fade-in">
+            {matches.map(m => (
+            <div key={m.id}
+                className="bg-black border-2 border-zinc-900 p-6 sm:p-8 flex flex-col md:flex-row gap-8 items-start hover:border-lime-400 transition-colors">
+                <div className="md:w-64 shrink-0">
+                    <div className="text-xl font-black uppercase tracking-tighter text-white mb-4">{m.home} v {m.away}
+                    </div>
+                    <div className="bg-zinc-950 p-4 border-l-4 border-lime-400">
+                        <div className="text-xs text-zinc-500 uppercase font-black tracking-widest mb-2">Final Output
+                        </div>
+                        <div className="text-4xl font-black text-white tracking-tighter">
+                            {LAB_MATCH_PREDICTIONS[m.id].home} : {LAB_MATCH_PREDICTIONS[m.id].away}</div>
+                    </div>
+                </div>
+                <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-4">
+                        <Activity className="w-5 h-5 text-lime-400" />
+                        <span className="text-sm font-black text-lime-400 uppercase tracking-widest">Reasoning
+                            Matrix</span>
+                    </div>
+                    <p className="text-zinc-300 font-bold uppercase tracking-wide leading-relaxed text-sm">
+                        {LAB_MATCH_PREDICTIONS[m.id].reasoning}
+                    </p>
+                </div>
+            </div>
+            ))}
+        </div>
+        )}
+
+        {demoTab === 'tournament' && (
+        <div className="grid md:grid-cols-2 gap-6 animate-in fade-in">
+            {TOURNAMENT_QUESTIONS.map(q => {
+            const insight = LAB_TOURNAMENT_PREDICTIONS[q.id];
+            const QIcon = q.icon;
+            return (
+            <div key={q.id}
+                className="bg-black border-2 border-zinc-900 overflow-hidden hover:border-white transition-colors">
+                <div className="bg-zinc-950 p-6 border-b-2 border-zinc-900 flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                        <QIcon className="w-6 h-6 text-white" />
+                        <span className="text-lg font-black uppercase tracking-tighter text-white">{q.title}</span>
+                    </div>
+                    <span
+                        className="bg-lime-400 text-black text-xs px-2 py-1 font-black tracking-widest uppercase">Prob:
+                        {insight.prob}</span>
+                </div>
+                <div className="p-6 sm:p-8">
+                    <div className="mb-8">
+                        <div className="text-xs text-zinc-500 uppercase font-black tracking-widest mb-2">Top Pick</div>
+                        <div className="text-4xl font-black text-white uppercase tracking-tighter">{insight.pick}</div>
+                    </div>
+                    <div className="border-t-2 border-zinc-900 pt-6">
+                        <div className="flex items-center gap-2 mb-3">
+                            <BrainCircuit className="w-4 h-4 text-white" />
+                            <span
+                                className="text-xs font-black text-white uppercase tracking-widest">{insight.agent}</span>
+                        </div>
+                        <p className="text-zinc-400 font-bold text-sm uppercase tracking-wide leading-relaxed">
+                            {insight.reasoning}
+                        </p>
+                    </div>
+                </div>
+            </div>
+            );
+            })}
+        </div>
+        )}
+
+        {demoTab === 'network' && (
+        <div className="animate-in fade-in">
+            <div className="bg-lime-400 p-8 sm:p-12 mb-8 text-center border-4 border-lime-400 relative overflow-hidden">
+                <Network className="w-16 h-16 text-black mx-auto mb-6 relative z-10 stroke-[1.5]" />
+                <h3
+                    className="text-4xl sm:text-5xl font-black text-black uppercase tracking-tighter italic mb-4 relative z-10">
+                    Agent Ecosystem</h3>
+                <p
+                    className="text-black/80 font-black uppercase tracking-widest max-w-3xl mx-auto relative z-10 leading-relaxed text-sm sm:text-base">
+                    The Lab operates on a multi-agent orchestration architecture. Specific models evaluate discrete
+                    inputs, surface independent probabilities, and synthesize them into official forecasts. No black
+                    boxes.
+                </p>
+            </div>
+
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {AGENT_SYSTEMS.map(agent => {
+                const Icon = agent.icon;
+                return (
+                <div key={agent.id}
+                    className="bg-black border-2 border-zinc-900 p-8 flex flex-col hover:border-lime-400 transition-colors group">
+                    <div className="flex items-center gap-4 mb-6">
+                        <div
+                            className="w-12 h-12 bg-white flex items-center justify-center transform -skew-x-6 group-hover:bg-lime-400 transition-colors">
+                            <Icon className="w-6 h-6 text-black transform skew-x-6" />
+                        </div>
+                        <h4 className="font-black text-white text-xl uppercase tracking-tighter">{agent.name}</h4>
+                    </div>
+                    <p className="text-zinc-400 font-bold uppercase tracking-wide text-sm leading-relaxed flex-1">
+                        {agent.desc}
+                    </p>
+                    <div
+                        className="mt-8 pt-6 border-t-2 border-zinc-900 flex items-center justify-between text-xs font-black tracking-widest uppercase">
+                        <span className="text-zinc-600">Status: <span
+                                className="text-lime-400 ml-1">Online</span></span>
+                        <span className="text-zinc-600">ID: {agent.id}</span>
+                    </div>
+                </div>
+                );
+                })}
+            </div>
+        </div>
+        )}
+    </div>
+    );
+
+    return (
+    <div className="min-h-screen bg-black text-white font-sans selection:bg-lime-400 selection:text-black">
+        {renderNav()}
+
+        <main className="pb-40">
+            {view === 'home' && renderHome()}
+            {view === 'predict' && renderPredict()}
+            {view === 'leaderboard' && renderLeaderboard()}
+            {view === 'profile' && renderProfile()}
+            {view === 'demo' && renderDemoMode()}
+        </main>
+
+        {/* ADMIN / DEMO CONTROLS (Floating Bottom Bar) */}
+        {currentUser && (
+        <div className="fixed bottom-0 left-0 right-0 bg-zinc-950 border-t-2 border-zinc-900 p-4 z-50">
+            <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="text-xs text-zinc-500 font-black uppercase tracking-widest flex items-center gap-2">
+                    <PlayCircle className="w-5 h-5 text-lime-400" /> Demo Console
+                </div>
+                <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+                    {matchdayState === 'pre-match' && (
+                    <button onClick={simulateMatchday}
+                        className="flex-1 sm:flex-none bg-white text-black px-5 py-3 font-black uppercase tracking-widest text-xs transition-colors hover:bg-lime-400 flex items-center justify-center gap-2 transform -skew-x-12">
+                        <span className="transform skew-x-12 flex items-center gap-2">Simulate Matchday
+                            <FastForward className="w-4 h-4" />
+                        </span>
+                    </button>
+                    )}
+                    {tournamentState === 'pre-tournament' && (
+                    <button onClick={simulateTournamentEnd}
+                        className="flex-1 sm:flex-none bg-white text-black px-5 py-3 font-black uppercase tracking-widest text-xs transition-colors hover:bg-lime-400 flex items-center justify-center gap-2 transform -skew-x-12">
+                        <span className="transform skew-x-12 flex items-center gap-2">Simulate Finals
+                            <Globe className="w-4 h-4" />
+                        </span>
+                    </button>
+                    )}
+                    {(matchdayState === 'finished' || tournamentState === 'finished') && (
+                    <button onClick={resetDemo}
+                        className="flex-1 sm:flex-none bg-zinc-900 text-white px-5 py-3 font-black uppercase tracking-widest text-xs transition-colors hover:bg-zinc-800 transform -skew-x-12">
+                        <span className="transform skew-x-12 block">Reset Loop</span>
+                    </button>
+                    )}
+                </div>
+            </div>
+        </div>
+        )}
+    </div>
+    );
+    }
