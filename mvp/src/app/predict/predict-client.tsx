@@ -1,19 +1,6 @@
 "use client";
-import { useState, useTransition } from "react";
-import type { Team, TeamForecast, PlayerForecast, Player, Fixture } from "@/lib/types";
-import { toPercent } from "@/lib/view";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type ScorePick  = { home: string; away: string };
-type OutrightId = "champion" | "finalist" | "topScorer" | "topAssist";
-
-type OutrightPick = {
-  champion:  string;
-  finalist:  string;
-  topScorer: string;
-  topAssist: string;
-};
+import { useState } from "react";
+import type { Team, TeamForecast, Player, PlayerForecast, Fixture } from "@/lib/types";
 
 type LabPrediction = {
   champion:  { team: Team; prob: number };
@@ -22,73 +9,25 @@ type LabPrediction = {
   topAssist: { player: Player; prob: number } | null;
 };
 
-// ─── Score input ──────────────────────────────────────────────────────────────
-
-const ScoreInput = ({
-  value,
-  onChange,
-  locked,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  locked: boolean;
-}) => (
-  <input
-    type="number"
-    min="0"
-    max="20"
-    value={value}
-    onChange={(e) => onChange(e.target.value)}
-    disabled={locked}
-    style={{
-      width: "2.4rem",
-      height: "2.4rem",
-      textAlign: "center",
-      fontSize: "1rem",
-      fontWeight: 900,
-      fontStyle: "italic",
-      background: locked ? "var(--surface-1)" : "var(--surface-2)",
-      border: `1px solid ${locked ? "var(--border-default)" : "var(--border-default)"}`,
-      color: locked ? "var(--text-400)" : "var(--text-100)",
-      fontFamily: "var(--font-sans)",
-      outline: "none",
-      cursor: locked ? "not-allowed" : "text",
-      MozAppearance: "textfield",
-    }}
-  />
-);
-
-// ─── Accuracy badge ───────────────────────────────────────────────────────────
-
-const HitBadge = ({ hit }: { hit: boolean }) => (
-  <span
-    style={{
-      fontSize: "0.6rem",
-      fontWeight: 800,
-      letterSpacing: "0.1em",
-      textTransform: "uppercase",
-      padding: "0.15rem 0.5rem",
-      background: hit ? "var(--cyan-vivid)" : "var(--rose-vivid)",
-      color: hit ? "var(--surface-0)" : "var(--text-100)",
-      transform: "skewX(-8deg)",
-      display: "inline-block",
-      flexShrink: 0,
-    }}
+// ─── SVG Connector Lines for Bracket ───
+const BracketConnector = ({ style }: { style: React.CSSProperties }) => (
+  <svg
+    style={{ ...style, position: "absolute", zIndex: 0, pointerEvents: "none" }}
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
   >
-    <span style={{ transform: "skewX(8deg)", display: "inline-block" }}>
-      {hit ? "HIT" : "MISS"}
-    </span>
-  </span>
+    <path
+      d="M 0 0 L 10 0 C 18 0 20 2 20 10 L 20 calc(100% - 10px) C 20 calc(100% - 2px) 22 100% 30 100% L 100% 100%"
+      stroke="var(--border-subtle)"
+      strokeWidth="2"
+      vectorEffect="non-scaling-stroke"
+    />
+  </svg>
 );
-
-// ─── Main client component ────────────────────────────────────────────────────
 
 export function PredictClient({
-  fixtures,
   teams,
-  forecasts,
   players,
-  playerForecasts,
   lab,
 }: {
   fixtures: Fixture[];
@@ -98,509 +37,334 @@ export function PredictClient({
   playerForecasts: PlayerForecast[];
   lab: LabPrediction;
 }) {
-  const teamsById  = new Map(teams.map((t) => [t.id, t]));
-  const upcoming   = fixtures
-    .filter((f) => f.status === "scheduled")
-    .sort((a, b) => a.dateUtc.localeCompare(b.dateUtc))
-    .slice(0, 8);
+  const teamsById = new Map(teams.map((t) => [t.id, t]));
+  const groupAObj = teams.filter((t) => t.group === "A");
+  const groupBObj = teams.filter((t) => t.group === "B");
 
-  const [scorePicks, setScorePicks] = useState<Record<string, ScorePick>>(
-    Object.fromEntries(upcoming.map((f) => [f.id, { home: "", away: "" }])),
-  );
+  // State: Ordered group standings
+  const [groupA, setGroupA] = useState<string[]>(groupAObj.map((t) => t.id));
+  const [groupB, setGroupB] = useState<string[]>(groupBObj.map((t) => t.id));
 
-  const [outrightPicks, setOutrightPicks] = useState<OutrightPick>({
-    champion:  "",
-    finalist:  "",
-    topScorer: "",
-    topAssist: "",
-  });
+  // State: Knockout winners
+  const [sf1Winner, setSf1Winner] = useState<string | null>(null);
+  const [sf2Winner, setSf2Winner] = useState<string | null>(null);
+  const [champion, setChampion] = useState<string | null>(null);
 
-  const [locked,  setLocked]  = useState(false);
-  const [, startTransition]   = useTransition();
+  // State: Players
+  const [topScorerId, setTopScorerId] = useState("");
+  const [topScorerGoals, setTopScorerGoals] = useState("");
+  const [topAssistId, setTopAssistId] = useState("");
+  const [topAssistCount, setTopAssistCount] = useState("");
 
-  const filledScores   = Object.values(scorePicks).filter((p) => p.home !== "" && p.away !== "").length;
-  const filledOutright = Object.values(outrightPicks).filter(Boolean).length;
-  const totalPicks     = filledScores + filledOutright;
-  const canLock        = !locked && totalPicks >= 3;
+  const [locked, setLocked] = useState(false);
 
-  const handleLock = () => {
-    startTransition(() => setLocked(true));
+  // Reordering groups
+  const moveUp = (group: "A" | "B", index: number) => {
+    if (locked || index === 0) return;
+    const g = group === "A" ? [...groupA] : [...groupB];
+    [g[index - 1], g[index]] = [g[index], g[index - 1]];
+    if (group === "A") setGroupA(g);
+    else setGroupB(g);
   };
 
-  // Compute a simple "match outcome" from power indices as Lab prediction
-  const getLabScore = (homeId: string, awayId: string): [number, number] => {
-    const home = teamsById.get(homeId)?.powerIndex ?? 70;
-    const away = teamsById.get(awayId)?.powerIndex ?? 70;
-    const diff = home - away;
-    if (diff > 8)  return [2, 0];
-    if (diff > 3)  return [1, 0];
-    if (diff < -8) return [0, 2];
-    if (diff < -3) return [0, 1];
-    return [1, 1];
+  const moveDown = (group: "A" | "B", index: number) => {
+    if (locked || index === 3) return;
+    const g = group === "A" ? [...groupA] : [...groupB];
+    [g[index + 1], g[index]] = [g[index], g[index + 1]];
+    if (group === "A") setGroupA(g);
+    else setGroupB(g);
   };
 
-  // Compare user score pick vs Lab
-  const scoreMatchesLab = (fixtureId: string, homeId: string, awayId: string) => {
-    const pick = scorePicks[fixtureId];
-    if (!pick || pick.home === "" || pick.away === "") return null;
-    const [lh, la] = getLabScore(homeId, awayId);
-    const userOutcome = parseInt(pick.home) > parseInt(pick.away) ? "home" : parseInt(pick.home) < parseInt(pick.away) ? "away" : "draw";
-    const labOutcome  = lh > la ? "home" : lh < la ? "away" : "draw";
-    return userOutcome === labOutcome;
-  };
+  // Derived knockout matchups
+  const sf1Team1 = groupA[0];
+  const sf1Team2 = groupB[1];
+  const sf2Team1 = groupB[0];
+  const sf2Team2 = groupA[1];
 
-  const champMatch  = locked && outrightPicks.champion  === lab.champion.team.id;
-  const finalistMatch = locked && outrightPicks.finalist === lab.finalist.team.id;
+  // Helper to visually render a bracket node
+  const renderBracketNode = (teamId: string, isWinner: boolean, onClick: () => void, seedLabel?: string) => {
+    const t = teamsById.get(teamId);
+    if (!t) return <div style={{ height: "46px", background: "var(--surface-1)", border: "1px solid var(--border-subtle)" }} />;
+
+    return (
+      <div
+        onClick={!locked ? onClick : undefined}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "0.75rem",
+          padding: "0.6rem 0.8rem",
+          background: isWinner ? "var(--cyan-soft)" : "var(--surface-1)",
+          border: isWinner ? "1px solid var(--cyan-vivid)" : "1px solid var(--border-default)",
+          cursor: locked ? "not-allowed" : "pointer",
+          position: "relative",
+          zIndex: 10,
+          transition: "all 0.2s ease",
+          minWidth: "160px"
+        }}
+      >
+        {seedLabel && (
+          <span style={{ fontSize: "0.55rem", fontWeight: 800, color: "var(--text-500)" }}>{seedLabel}</span>
+        )}
+        {t.flagCode && (
+          <img src={`https://flagcdn.com/w40/${t.flagCode}.png`} alt="" width={20} height={14} style={{ objectFit: "cover" }} />
+        )}
+        <span style={{ fontSize: "0.8rem", fontWeight: 700, color: isWinner ? "var(--cyan-vivid)" : "var(--text-100)" }}>
+          {t.name}
+        </span>
+      </div>
+    );
+  };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "2.5rem" }}>
-
+    <div style={{ display: "flex", flexDirection: "column", gap: "3rem", paddingBottom: "4rem" }}>
       {/* ── Header ─────────────────────────────────────────────────── */}
       <div>
         <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "1.25rem" }}>
           <div className="live-dot" />
           <span style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--text-400)" }}>
-            World Cup 2026 · Prediction Game
+            Interactive Bracket
           </span>
         </div>
         <h1 className="text-sport-hero" style={{ margin: "0 0 0.75rem" }}>
-          Beat<br />
-          <span style={{ color: "var(--cyan-vivid)" }}>The Lab.</span>
+          Tournament<br />
+          <span style={{ color: "var(--cyan-vivid)" }}>Challenge.</span>
         </h1>
-        <p style={{ margin: 0, maxWidth: "500px", fontSize: "0.9rem", color: "var(--text-400)", lineHeight: 1.6 }}>
-          Pick match scores and tournament winners. We'll show you how your predictions
-          stack up against 10,000 AI simulations when the tournament ends.
+        <p style={{ margin: 0, maxWidth: "540px", fontSize: "0.95rem", color: "var(--text-300)", lineHeight: 1.6 }}>
+          Rank the group stages, build your playoff tree, and forecast the top performers. 
+          When locked, compare your deterministic bracket directly against the AI's probabilistic final outlook.
         </p>
       </div>
 
-      {/* ── Progress bar ───────────────────────────────────────────── */}
-      <div style={{ border: "1px solid var(--border-subtle)", padding: "1rem 1.25rem" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.6rem" }}>
-          <span style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-400)" }}>
-            {locked ? "Picks Locked" : `${totalPicks} / ${upcoming.length + 4} picks made`}
-          </span>
-          {locked ? (
-            <span
-              style={{
-                fontSize: "0.62rem",
-                fontWeight: 800,
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-                padding: "0.2rem 0.6rem",
-                background: "var(--cyan-vivid)",
-                color: "var(--surface-0)",
-                transform: "skewX(-8deg)",
-                display: "inline-block",
-              }}
-            >
-              <span style={{ transform: "skewX(8deg)", display: "inline-block" }}>LOCKED IN</span>
-            </span>
-          ) : (
-            <button
-              onClick={handleLock}
-              disabled={!canLock}
-              className="btn-sport"
-              style={{ opacity: canLock ? 1 : 0.4, cursor: canLock ? "pointer" : "not-allowed" }}
-            >
-              <span className="btn-sport-inner">Lock In Picks →</span>
-            </button>
-          )}
-        </div>
-        <div style={{ height: "3px", background: "var(--border-subtle)" }}>
-          <div
-            style={{
-              height: "100%",
-              background: locked ? "var(--cyan-vivid)" : "var(--border-default)",
-              width: `${Math.min(100, (totalPicks / (upcoming.length + 4)) * 100)}%`,
-              transition: "width 0.4s ease",
-            }}
-          />
-        </div>
-      </div>
-
-      {/* ── Two-column picks layout ─────────────────────────────────── */}
-      <div style={{ display: "grid", gap: "1.5rem", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
-
-        {/* YOUR PICKS */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-            <div style={{ width: "3px", height: "1rem", background: "var(--cyan-vivid)", flexShrink: 0 }} />
-            <span style={{ fontSize: "0.68rem", fontWeight: 800, fontStyle: "italic", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-100)" }}>
-              Your Picks
-            </span>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "2.5rem", alignItems: "flex-start" }}>
+        
+        {/* ── Group Stage Ranker ─────────────────────────────────────── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+          <div>
+            <h2 style={{ fontSize: "0.85rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-200)", margin: "0 0 1rem" }}>
+              Group Standings
+            </h2>
+            <p style={{ fontSize: "0.75rem", color: "var(--text-400)", marginBottom: "1.5rem", lineHeight: 1.5 }}>
+              Use the arrows to rank the teams. The top 2 from each group advance to the playoffs.
+            </p>
           </div>
 
-          {/* Match score predictions */}
-          <div style={{ border: "1px solid var(--border-subtle)" }}>
-            <div style={{ padding: "0.75rem 1rem", borderBottom: "1px solid var(--border-subtle)" }}>
-              <span style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-400)" }}>
-                Match Score Predictions
-              </span>
-            </div>
-            <div style={{ padding: "0.75rem" }}>
-              {upcoming.map((fixture) => {
-                const home = teamsById.get(fixture.homeTeamId);
-                const away = teamsById.get(fixture.awayTeamId);
-                if (!home || !away) return null;
-                const pick = scorePicks[fixture.id];
-                const matchHit = locked ? scoreMatchesLab(fixture.id, fixture.homeTeamId, fixture.awayTeamId) : null;
-
-                return (
-                  <div
-                    key={fixture.id}
-                    style={{
-                      padding: "0.7rem 0.5rem",
-                      borderBottom: "1px solid var(--border-subtle)",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "0.5rem",
-                    }}
-                  >
-                    {/* Home */}
-                    <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "0.4rem", justifyContent: "flex-end", minWidth: 0 }}>
-                      <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--text-100)", textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {home.name}
-                      </span>
-                      {home.flagCode && (
-                        <img src={`https://flagcdn.com/w40/${home.flagCode}.png`} alt="" width={18} height={12} style={{ objectFit: "cover", flexShrink: 0 }} />
-                      )}
-                    </div>
-
-                    {/* Score inputs */}
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.3rem", flexShrink: 0 }}>
-                      <ScoreInput value={pick?.home ?? ""} onChange={(v) => setScorePicks((p) => ({ ...p, [fixture.id]: { ...p[fixture.id], home: v } }))} locked={locked} />
-                      <span style={{ color: "var(--text-500)", fontWeight: 900, fontSize: "0.9rem" }}>:</span>
-                      <ScoreInput value={pick?.away ?? ""} onChange={(v) => setScorePicks((p) => ({ ...p, [fixture.id]: { ...p[fixture.id], away: v } }))} locked={locked} />
-                    </div>
-
-                    {/* Away */}
-                    <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "0.4rem", minWidth: 0 }}>
-                      {away.flagCode && (
-                        <img src={`https://flagcdn.com/w40/${away.flagCode}.png`} alt="" width={18} height={12} style={{ objectFit: "cover", flexShrink: 0 }} />
-                      )}
-                      <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--text-100)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {away.name}
-                      </span>
-                    </div>
-
-                    {/* Hit/miss after lock */}
-                    {matchHit !== null && <HitBadge hit={matchHit} />}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Outright picks */}
-          <div style={{ border: "1px solid var(--border-subtle)" }}>
-            <div style={{ padding: "0.75rem 1rem", borderBottom: "1px solid var(--border-subtle)" }}>
-              <span style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-400)" }}>
-                Tournament Outrights
-              </span>
-            </div>
-            <div style={{ padding: "0.75rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-              {(
-                [
-                  { id: "champion",  label: "Champion",    options: teams },
-                  { id: "finalist",  label: "Finalist",    options: teams },
-                ] as { id: OutrightId; label: string; options: Team[] }[]
-              ).map(({ id, label, options }) => (
-                <div key={id}>
-                  <label style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-400)", display: "block", marginBottom: "0.35rem" }}>
-                    {label}
-                  </label>
-                  <select
-                    disabled={locked}
-                    value={outrightPicks[id]}
-                    onChange={(e) => setOutrightPicks((p) => ({ ...p, [id]: e.target.value }))}
-                    style={{
-                      width: "100%",
-                      padding: "0.5rem 0.75rem",
-                      background: locked ? "var(--surface-1)" : "var(--surface-2)",
-                      border: "1px solid var(--border-default)",
-                      color: outrightPicks[id] ? "var(--text-100)" : "var(--text-500)",
-                      fontSize: "0.82rem",
-                      fontWeight: 600,
-                      fontFamily: "var(--font-sans)",
-                      cursor: locked ? "not-allowed" : "pointer",
-                      outline: "none",
-                    }}
-                  >
-                    <option value="">— Select Team —</option>
-                    {[...options]
-                      .sort((a, b) => a.name.localeCompare(b.name))
-                      .map((t) => (
-                        <option key={t.id} value={t.id}>{t.name}</option>
-                      ))}
-                  </select>
-                </div>
-              ))}
-
-              {(
-                [
-                  { id: "topScorer", label: "Golden Boot",     options: players },
-                  { id: "topAssist", label: "Most Assists",    options: players },
-                ] as { id: OutrightId; label: string; options: Player[] }[]
-              ).map(({ id, label, options }) => (
-                <div key={id}>
-                  <label style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-400)", display: "block", marginBottom: "0.35rem" }}>
-                    {label}
-                  </label>
-                  <select
-                    disabled={locked}
-                    value={outrightPicks[id]}
-                    onChange={(e) => setOutrightPicks((p) => ({ ...p, [id]: e.target.value }))}
-                    style={{
-                      width: "100%",
-                      padding: "0.5rem 0.75rem",
-                      background: locked ? "var(--surface-1)" : "var(--surface-2)",
-                      border: "1px solid var(--border-default)",
-                      color: outrightPicks[id] ? "var(--text-100)" : "var(--text-500)",
-                      fontSize: "0.82rem",
-                      fontWeight: 600,
-                      fontFamily: "var(--font-sans)",
-                      cursor: locked ? "not-allowed" : "pointer",
-                      outline: "none",
-                    }}
-                  >
-                    <option value="">— Select Player —</option>
-                    {[...options]
-                      .sort((a, b) => a.name.localeCompare(b.name))
-                      .map((p) => {
-                        const team = teamsById.get(p.teamId);
-                        return (
-                          <option key={p.id} value={p.id}>
-                            {p.name}{team ? ` (${team.name})` : ""}
-                          </option>
-                        );
-                      })}
-                  </select>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* THE LAB */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-            <div style={{ width: "3px", height: "1rem", background: "var(--amber-vivid)", flexShrink: 0 }} />
-            <span style={{ fontSize: "0.68rem", fontWeight: 800, fontStyle: "italic", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-100)" }}>
-              The Lab&apos;s Predictions
-            </span>
-            <span
-              style={{
-                fontSize: "0.55rem",
-                fontWeight: 800,
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-                padding: "0.12rem 0.45rem",
-                background: "var(--cyan-soft)",
-                color: "var(--cyan-vivid)",
-                border: "1px solid rgba(163,230,53,0.25)",
-              }}
-            >
-              AI
-            </span>
-          </div>
-
-          {/* Lab match predictions */}
-          <div style={{ border: "1px solid var(--border-subtle)" }}>
-            <div style={{ padding: "0.75rem 1rem", borderBottom: "1px solid var(--border-subtle)" }}>
-              <span style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-400)" }}>
-                AI Score Forecast
-              </span>
-            </div>
-            <div style={{ padding: "0.75rem" }}>
-              {upcoming.map((fixture) => {
-                const home = teamsById.get(fixture.homeTeamId);
-                const away = teamsById.get(fixture.awayTeamId);
-                if (!home || !away) return null;
-                const [lh, la] = getLabScore(fixture.homeTeamId, fixture.awayTeamId);
-                const pick    = scorePicks[fixture.id];
-                const hasPick = pick?.home !== "" && pick?.away !== "";
-                const matchHit = locked && hasPick ? scoreMatchesLab(fixture.id, fixture.homeTeamId, fixture.awayTeamId) : null;
-
-                return (
-                  <div
-                    key={fixture.id}
-                    style={{
-                      padding: "0.7rem 0.5rem",
-                      borderBottom: "1px solid var(--border-subtle)",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "0.5rem",
-                      background: matchHit === true ? "rgba(0,212,255,0.04)" : matchHit === false ? "rgba(255,61,113,0.04)" : "transparent",
-                    }}
-                  >
-                    <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "0.4rem", justifyContent: "flex-end", minWidth: 0 }}>
-                      <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--text-300)", textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {home.name}
-                      </span>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", flexShrink: 0 }}>
-                      <span
-                        style={{
-                          width: "2.4rem",
-                          height: "2.4rem",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          background: "var(--surface-1)",
-                          border: "1px solid var(--border-default)",
-                          fontSize: "1rem",
-                          fontWeight: 900,
-                          fontStyle: "italic",
-                          color: "var(--amber-vivid)",
-                        }}
-                      >
-                        {lh}
-                      </span>
-                      <span style={{ color: "var(--text-500)", fontWeight: 900, fontSize: "0.9rem" }}>:</span>
-                      <span
-                        style={{
-                          width: "2.4rem",
-                          height: "2.4rem",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          background: "var(--surface-1)",
-                          border: "1px solid var(--border-default)",
-                          fontSize: "1rem",
-                          fontWeight: 900,
-                          fontStyle: "italic",
-                          color: "var(--amber-vivid)",
-                        }}
-                      >
-                        {la}
-                      </span>
-                    </div>
-                    <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "0.4rem", minWidth: 0 }}>
-                      <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--text-300)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {away.name}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Lab outright predictions */}
-          <div style={{ border: "1px solid var(--border-subtle)" }}>
-            <div style={{ padding: "0.75rem 1rem", borderBottom: "1px solid var(--border-subtle)" }}>
-              <span style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-400)" }}>
-                AI Tournament Outlook
-              </span>
-            </div>
-            <div style={{ padding: "0.75rem", display: "flex", flexDirection: "column", gap: "0" }}>
-
-              {/* Champion */}
-              <div style={{ padding: "0.85rem 0", borderBottom: "1px solid var(--border-subtle)" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.4rem" }}>
-                  <span style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-400)" }}>Champion</span>
-                  {locked && champMatch !== null && <HitBadge hit={champMatch} />}
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                  {lab.champion.team.flagCode && (
-                    <img src={`https://flagcdn.com/w40/${lab.champion.team.flagCode}.png`} alt="" width={22} height={15} style={{ objectFit: "cover" }} />
-                  )}
-                  <span style={{ fontSize: "0.95rem", fontWeight: 900, fontStyle: "italic", textTransform: "uppercase", color: "var(--amber-vivid)" }}>
-                    {lab.champion.team.name}
-                  </span>
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.75rem", color: "var(--text-400)", marginLeft: "auto" }}>
-                    {toPercent(lab.champion.prob)}
-                  </span>
-                </div>
-                {/* Mini prob bar */}
-                <div style={{ height: "2px", background: "var(--border-subtle)", marginTop: "0.5rem" }}>
-                  <div style={{ height: "100%", width: `${Math.round(lab.champion.prob * 100)}%`, background: "var(--amber-vivid)" }} />
-                </div>
-              </div>
-
-              {/* Finalist */}
-              <div style={{ padding: "0.85rem 0", borderBottom: "1px solid var(--border-subtle)" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.4rem" }}>
-                  <span style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-400)" }}>Finalist</span>
-                  {locked && finalistMatch !== null && <HitBadge hit={finalistMatch} />}
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                  {lab.finalist.team.flagCode && (
-                    <img src={`https://flagcdn.com/w40/${lab.finalist.team.flagCode}.png`} alt="" width={22} height={15} style={{ objectFit: "cover" }} />
-                  )}
-                  <span style={{ fontSize: "0.95rem", fontWeight: 900, fontStyle: "italic", textTransform: "uppercase", color: "var(--cyan-vivid)" }}>
-                    {lab.finalist.team.name}
-                  </span>
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.75rem", color: "var(--text-400)", marginLeft: "auto" }}>
-                    {toPercent(lab.finalist.prob)}
-                  </span>
-                </div>
-                <div style={{ height: "2px", background: "var(--border-subtle)", marginTop: "0.5rem" }}>
-                  <div style={{ height: "100%", width: `${Math.round(lab.finalist.prob * 100)}%`, background: "var(--cyan-vivid)" }} />
-                </div>
-              </div>
-
-              {/* Golden Boot */}
-              {lab.topScorer && (
-                <div style={{ padding: "0.85rem 0", borderBottom: "1px solid var(--border-subtle)" }}>
-                  <span style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-400)", display: "block", marginBottom: "0.4rem" }}>
-                    Golden Boot Favorite
-                  </span>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                    <span style={{ fontSize: "0.9rem", fontWeight: 900, fontStyle: "italic", textTransform: "uppercase", color: "var(--text-100)" }}>
-                      {lab.topScorer.player.name}
-                    </span>
-                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.72rem", color: "var(--text-400)", marginLeft: "auto" }}>
-                      {toPercent(lab.topScorer.prob)}
-                    </span>
-                  </div>
-                  <div style={{ height: "2px", background: "var(--border-subtle)", marginTop: "0.5rem" }}>
-                    <div style={{ height: "100%", width: `${Math.round(lab.topScorer.prob * 100)}%`, background: "var(--green-vivid)" }} />
-                  </div>
-                </div>
-              )}
-
-              {/* Top Assist */}
-              {lab.topAssist && (
-                <div style={{ padding: "0.85rem 0" }}>
-                  <span style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-400)", display: "block", marginBottom: "0.4rem" }}>
-                    Top Assists Favorite
-                  </span>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                    <span style={{ fontSize: "0.9rem", fontWeight: 900, fontStyle: "italic", textTransform: "uppercase", color: "var(--text-100)" }}>
-                      {lab.topAssist.player.name}
-                    </span>
-                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.72rem", color: "var(--text-400)", marginLeft: "auto" }}>
-                      {toPercent(lab.topAssist.prob)}
-                    </span>
-                  </div>
-                  <div style={{ height: "2px", background: "var(--border-subtle)", marginTop: "0.5rem" }}>
-                    <div style={{ height: "100%", width: `${Math.round(lab.topAssist.prob * 100)}%`, background: "var(--green-vivid)" }} />
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Accuracy summary (post-lock) */}
-          {locked && (
-            <div style={{ border: "1px solid rgba(163,230,53,0.3)", background: "rgba(0,212,255,0.04)", padding: "1rem 1.25rem" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "0.75rem" }}>
-                <div style={{ width: "3px", height: "1rem", background: "var(--cyan-vivid)", flexShrink: 0 }} />
-                <span style={{ fontSize: "0.65rem", fontWeight: 800, fontStyle: "italic", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-100)" }}>
-                  Alignment With The Lab
+          {[
+            { label: "Group A", list: groupA, handlerUp: (i:number) => moveUp("A", i), handlerDown: (i:number)=> moveDown("A", i) },
+            { label: "Group B", list: groupB, handlerUp: (i:number) => moveUp("B", i), handlerDown: (i:number)=> moveDown("B", i) },
+          ].map(({ label, list, handlerUp, handlerDown }) => (
+            <div key={label} style={{ border: "1px solid var(--border-subtle)", background: "var(--surface-0)" }}>
+              <div style={{ padding: "0.6rem 1rem", borderBottom: "1px solid var(--border-subtle)", background: "var(--surface-1)" }}>
+                <span style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-400)" }}>
+                  {label}
                 </span>
               </div>
-              <p style={{ margin: 0, fontSize: "0.8rem", color: "var(--text-400)", lineHeight: 1.6 }}>
-                Your picks are locked. Come back after each match to see
-                how your predictions compared to the AI. Results update live.
-              </p>
-              <p style={{ margin: "0.6rem 0 0", fontSize: "0.68rem", fontFamily: "var(--font-mono)", color: "var(--text-500)", textTransform: "uppercase" }}>
-                Tournament begins Jun 11, 2026
-              </p>
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                {list.map((teamId, idx) => {
+                  const t = teamsById.get(teamId)!;
+                  const isAdvancing = idx < 2;
+                  return (
+                    <div key={teamId} style={{ display: "flex", alignItems: "center", padding: "0.4rem 0.5rem", borderBottom: idx < 3 ? "1px solid var(--border-subtle)" : "none", background: isAdvancing ? "var(--surface-2)" : "transparent" }}>
+                      {/* Rank Number */}
+                      <div style={{ width: "24px", textAlign: "center", fontSize: "0.8rem", fontWeight: 800, color: isAdvancing ? "var(--cyan-vivid)" : "var(--text-500)" }}>
+                        {idx + 1}
+                      </div>
+                      
+                      {/* Controls */}
+                      <div style={{ display: "flex", flexDirection: "column", opacity: locked ? 0.3 : 1, margin: "0 0.5rem" }}>
+                        <button onClick={() => handlerUp(idx)} disabled={locked || idx === 0} style={{ background: "transparent", border: "none", cursor: locked || idx === 0 ? "default" : "pointer", padding: "0", color: "var(--text-400)", fontSize: "0.6rem" }}>▲</button>
+                        <button onClick={() => handlerDown(idx)} disabled={locked || idx === 3} style={{ background: "transparent", border: "none", cursor: locked || idx === 3 ? "default" : "pointer", padding: "0", color: "var(--text-400)", fontSize: "0.6rem" }}>▼</button>
+                      </div>
+
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flex: 1 }}>
+                        <img src={`https://flagcdn.com/w40/${t.flagCode}.png`} alt="" width={20} height={14} style={{ objectFit: "cover" }} />
+                        <span style={{ fontSize: "0.8rem", fontWeight: 700, color: isAdvancing ? "var(--text-100)" : "var(--text-300)" }}>{t.name}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          )}
+          ))}
         </div>
+
+        {/* ── Bracket & Players ──────────────────────────────────────── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "2.5rem" }}>
+          
+          {/* PLAYOFF BRACKET */}
+          <div>
+            <h2 style={{ fontSize: "0.85rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-200)", margin: "0 0 1.5rem" }}>
+              Knockout Stage
+            </h2>
+            <div style={{ 
+              display: "flex", 
+              justifyContent: "space-between", 
+              alignItems: "center",
+              background: "var(--surface-0)",
+              border: "1px solid var(--border-subtle)",
+              padding: "2.5rem 1.5rem"
+            }} className="bracket-container">
+              
+              {/* SEMIFINAL COLUMN */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "3rem", width: "190px" }}>
+                
+                {/* MATCH 1: 1A vs 2B */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "0", border: "1px solid var(--border-subtle)" }}>
+                  {renderBracketNode(sf1Team1, sf1Winner === sf1Team1, () => { setSf1Winner(sf1Team1); if(champion === sf1Team2) setChampion(null); }, "1A")}
+                  <div style={{ height: "1px", background: "var(--border-subtle)" }} />
+                  {renderBracketNode(sf1Team2, sf1Winner === sf1Team2, () => { setSf1Winner(sf1Team2); if(champion === sf1Team1) setChampion(null); }, "2B")}
+                </div>
+
+                {/* MATCH 2: 1B vs 2A */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "0", border: "1px solid var(--border-subtle)" }}>
+                  {renderBracketNode(sf2Team1, sf2Winner === sf2Team1, () => { setSf2Winner(sf2Team1); if(champion === sf2Team2) setChampion(null); }, "1B")}
+                  <div style={{ height: "1px", background: "var(--border-subtle)" }} />
+                  {renderBracketNode(sf2Team2, sf2Winner === sf2Team2, () => { setSf2Winner(sf2Team2); if(champion === sf2Team1) setChampion(null); }, "2A")}
+                </div>
+
+              </div>
+
+              {/* FINAL COLUMN */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem", width: "190px", position: "relative" }}>
+                <span style={{ position: "absolute", top: "-25px", left: "50%", transform: "translateX(-50%)", fontSize: "0.6rem", fontWeight: 800, letterSpacing: "0.15em", color: "var(--cyan-vivid)" }}>FINAL</span>
+                <div style={{ display: "flex", flexDirection: "column", gap: "0", border: "1px solid var(--border-accent)", boxShadow: "0 0 20px rgba(0, 212, 255, 0.1)" }}>
+                  {sf1Winner 
+                    ? renderBracketNode(sf1Winner, champion === sf1Winner, () => setChampion(sf1Winner), "W1")
+                    : <div style={{ height: "46px", background: "var(--surface-1)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-500)", fontSize: "0.7rem", fontWeight: 700 }}>TBD</div>
+                  }
+                  <div style={{ height: "1px", background: "var(--border-accent)" }} />
+                  {sf2Winner 
+                    ? renderBracketNode(sf2Winner, champion === sf2Winner, () => setChampion(sf2Winner), "W2")
+                    : <div style={{ height: "46px", background: "var(--surface-1)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-500)", fontSize: "0.7rem", fontWeight: 700 }}>TBD</div>
+                  }
+                </div>
+              </div>
+
+              {/* CHAMPION COLUMN */}
+              <div style={{ width: "150px", display: "flex", flexDirection: "column", alignItems: "center" }}>
+                 <div style={{ 
+                   width: "80px", height: "80px", borderRadius: "50%", 
+                   border: champion ? "4px solid var(--cyan-vivid)" : "4px dashed var(--border-default)",
+                   display: "flex", alignItems: "center", justifyContent: "center",
+                   background: "var(--surface-1)",
+                   boxShadow: champion ? "0 0 40px var(--cyan-glow)" : "none",
+                   transition: "all 0.3s ease"
+                 }}>
+                   {champion && teamsById.get(champion)?.flagCode ? (
+                     <img src={`https://flagcdn.com/w80/${teamsById.get(champion)?.flagCode}.png`} alt="" width={44} height={30} style={{ objectFit: "cover" }} />
+                   ) : (
+                     <span style={{ fontSize: "1.5rem" }}>🏆</span>
+                   )}
+                 </div>
+                 <span style={{ marginTop: "1rem", fontSize: "0.9rem", fontWeight: 900, textTransform: "uppercase", color: champion ? "var(--cyan-vivid)" : "var(--text-500)", letterSpacing: "0.1em" }}>
+                   {champion ? teamsById.get(champion)?.name : "Champion"}
+                 </span>
+              </div>
+
+            </div>
+          </div>
+
+          {/* PLAYER PREDICTIONS */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem" }}>
+            <div style={{ border: "1px solid var(--border-subtle)", padding: "1.25rem", background: "var(--surface-0)" }}>
+              <span style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-400)", display: "block", marginBottom: "1rem" }}>
+                Golden Boot Prediction
+              </span>
+              <div style={{ display: "flex", gap: "0.5rem" }}>
+                <select 
+                  value={topScorerId} 
+                  onChange={(e) => setTopScorerId(e.target.value)}
+                  disabled={locked}
+                  style={{ flex: 1, padding: "0.6rem 0.8rem", background: "var(--surface-1)", border: "1px solid var(--border-default)", color: "var(--text-100)", fontSize: "0.85rem", fontWeight: 600, outline: "none", cursor: locked ? "not-allowed" : "pointer" }}
+                >
+                  <option value="">— Select Player —</option>
+                  {players.sort((a,b) => a.name.localeCompare(b.name)).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+                <input 
+                  type="number" 
+                  min="0" 
+                  placeholder="Goals"
+                  value={topScorerGoals}
+                  onChange={(e) => setTopScorerGoals(e.target.value)}
+                  disabled={locked}
+                  style={{ width: "80px", padding: "0.6rem", background: "var(--surface-1)", border: "1px solid var(--border-default)", color: "var(--text-100)", fontSize: "0.85rem", fontWeight: 800, textAlign: "center", outline: "none" }}
+                />
+              </div>
+            </div>
+
+            <div style={{ border: "1px solid var(--border-subtle)", padding: "1.25rem", background: "var(--surface-0)" }}>
+              <span style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-400)", display: "block", marginBottom: "1rem" }}>
+                Top Assist Prediction
+              </span>
+              <div style={{ display: "flex", gap: "0.5rem" }}>
+                <select 
+                  value={topAssistId} 
+                  onChange={(e) => setTopAssistId(e.target.value)}
+                  disabled={locked}
+                  style={{ flex: 1, padding: "0.6rem 0.8rem", background: "var(--surface-1)", border: "1px solid var(--border-default)", color: "var(--text-100)", fontSize: "0.85rem", fontWeight: 600, outline: "none", cursor: locked ? "not-allowed" : "pointer" }}
+                >
+                  <option value="">— Select Player —</option>
+                  {players.sort((a,b) => a.name.localeCompare(b.name)).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+                <input 
+                  type="number" 
+                  min="0" 
+                  placeholder="Assists"
+                  value={topAssistCount}
+                  onChange={(e) => setTopAssistCount(e.target.value)}
+                  disabled={locked}
+                  style={{ width: "80px", padding: "0.6rem", background: "var(--surface-1)", border: "1px solid var(--border-default)", color: "var(--text-100)", fontSize: "0.85rem", fontWeight: 800, textAlign: "center", outline: "none" }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* LOCK BAR / LAB COMPARISON */}
+          <div style={{ marginTop: "1rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+             {!locked ? (
+               <button 
+                 onClick={() => setLocked(true)}
+                 disabled={!champion || !topScorerId || !topAssistId || !topScorerGoals || !topAssistCount}
+                 style={{ 
+                   width: "100%", padding: "1.2rem", background: "var(--cyan-vivid)", color: "var(--ink-900)", 
+                   fontSize: "0.9rem", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.1em",
+                   border: "none", cursor: (!champion || !topScorerId || !topAssistId || !topScorerGoals || !topAssistCount) ? "not-allowed" : "pointer",
+                   opacity: (!champion || !topScorerId || !topAssistId || !topScorerGoals || !topAssistCount) ? 0.3 : 1,
+                   transform: "skewX(-8deg)"
+                 }}
+               >
+                 <span style={{ transform: "skewX(8deg)", display: "inline-block" }}>Lock In Bracket & Compare With AI →</span>
+               </button>
+             ) : (
+               <div style={{ border: "1px solid var(--cyan-vivid)", background: "var(--cyan-soft)", padding: "1.5rem" }}>
+                 <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "1rem" }}>
+                    <div style={{ width: "3px", height: "1rem", background: "var(--cyan-vivid)", flexShrink: 0 }} />
+                    <span style={{ fontSize: "0.7rem", fontWeight: 800, fontStyle: "italic", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-100)" }}>
+                      AI Calibration Result
+                    </span>
+                 </div>
+                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem" }}>
+                   <div>
+                     <p style={{ margin: "0 0 0.5rem", fontSize: "0.65rem", color: "var(--text-400)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Lab Champion Pick</p>
+                     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", background: "var(--surface-1)", padding: "0.8rem", border: "1px solid var(--border-default)" }}>
+                       {lab.champion.team.flagCode && <img src={`https://flagcdn.com/w40/${lab.champion.team.flagCode}.png`} alt="" width={20} height={14} />}
+                       <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--amber-vivid)" }}>{lab.champion.team.name}</span>
+                       <span style={{ marginLeft: "auto", fontSize: "0.75rem", fontFamily: "var(--font-mono)", color: "var(--text-300)" }}>{(lab.champion.prob * 100).toFixed(1)}%</span>
+                     </div>
+                   </div>
+                   <div>
+                     <p style={{ margin: "0 0 0.5rem", fontSize: "0.65rem", color: "var(--text-400)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Lab Top Scorer Fav</p>
+                     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", background: "var(--surface-1)", padding: "0.8rem", border: "1px solid var(--border-default)" }}>
+                       <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--green-vivid)" }}>{lab.topScorer?.player.name}</span>
+                       <span style={{ marginLeft: "auto", fontSize: "0.75rem", fontFamily: "var(--font-mono)", color: "var(--text-300)" }}>{(lab.topScorer ? lab.topScorer.prob * 100 : 0).toFixed(1)}%</span>
+                     </div>
+                   </div>
+                 </div>
+               </div>
+             )}
+          </div>
+        </div>
+
       </div>
     </div>
   );
