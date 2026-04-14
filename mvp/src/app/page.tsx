@@ -40,7 +40,7 @@ export default async function Home() {
         className="animate-fade-up"
         style={{
           padding: "4rem 0 3rem",
-          borderBottom: "1px solid #18181b",
+          borderBottom: "1px solid var(--border-subtle)",
           marginBottom: "3rem",
         }}
       >
@@ -53,7 +53,7 @@ export default async function Home() {
               fontWeight: 700,
               letterSpacing: "0.16em",
               textTransform: "uppercase",
-              color: "#71717a",
+              color: "var(--text-400)",
             }}
           >
             Live · FIFA World Cup 2026 · 10,000 Simulations
@@ -63,7 +63,7 @@ export default async function Home() {
         {/* Big headline */}
         <h1 className="text-sport-hero" style={{ margin: "0 0 0.5rem" }}>
           Beat<br />
-          <span style={{ color: "#a3e635" }}>The Lab.</span>
+          <span style={{ color: "var(--cyan-vivid)" }}>The Lab.</span>
         </h1>
 
         <p
@@ -71,7 +71,7 @@ export default async function Home() {
             margin: "1.5rem 0 2rem",
             maxWidth: "520px",
             fontSize: "0.95rem",
-            color: "#71717a",
+            color: "var(--text-400)",
             lineHeight: 1.6,
             fontWeight: 400,
           }}
@@ -93,8 +93,8 @@ export default async function Home() {
               display: "inline-flex",
               alignItems: "center",
               padding: "0.65rem 1.5rem",
-              border: "1px solid #27272a",
-              color: "#a1a1aa",
+              border: "1px solid var(--border-default)",
+              color: "var(--text-300)",
               fontSize: "0.82rem",
               fontWeight: 700,
               letterSpacing: "0.06em",
@@ -115,8 +115,8 @@ export default async function Home() {
           display: "grid",
           gap: "1px",
           gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-          background: "#18181b",
-          border: "1px solid #18181b",
+          background: "var(--border-subtle)",
+          border: "1px solid var(--border-subtle)",
           marginBottom: "3rem",
         }}
       >
@@ -153,11 +153,11 @@ export default async function Home() {
         style={{ display: "grid", gap: "1.5rem", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", marginBottom: "3rem" }}
       >
         {/* Champion Probability */}
-        <div style={{ border: "1px solid #18181b", background: "#0a0a0a" }}>
+        <div style={{ border: "1px solid var(--border-subtle)", background: "var(--surface-1)" }}>
           <div
             style={{
               padding: "1rem 1.25rem",
-              borderBottom: "1px solid #18181b",
+              borderBottom: "1px solid var(--border-subtle)",
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
@@ -168,7 +168,7 @@ export default async function Home() {
                 style={{
                   width: "3px",
                   height: "1rem",
-                  background: "#a3e635",
+                  background: "var(--cyan-vivid)",
                   flexShrink: 0,
                 }}
               />
@@ -179,7 +179,7 @@ export default async function Home() {
                   fontStyle: "italic",
                   letterSpacing: "0.1em",
                   textTransform: "uppercase",
-                  color: "#f4f4f5",
+                  color: "var(--text-100)",
                 }}
               >
                 Champion Odds
@@ -190,7 +190,7 @@ export default async function Home() {
               style={{
                 fontSize: "0.65rem",
                 fontFamily: "var(--font-mono)",
-                color: "#a3e635",
+                color: "var(--cyan-vivid)",
                 textDecoration: "none",
                 letterSpacing: "0.04em",
               }}
@@ -210,7 +210,7 @@ export default async function Home() {
                   style={{
                     padding: "0.65rem 0.85rem",
                     background: i === 0 ? "rgba(163,230,53,0.06)" : "transparent",
-                    border: `1px solid ${i === 0 ? "rgba(163,230,53,0.2)" : "#18181b"}`,
+                    border: `1px solid ${i === 0 ? "rgba(163,230,53,0.2)" : "var(--border-subtle)"}`,
                   }}
                 >
                   <ProbabilityBar
@@ -231,23 +231,23 @@ export default async function Home() {
         <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
 
           {/* Upcoming Fixtures */}
-          <div style={{ border: "1px solid #18181b", background: "#0a0a0a" }}>
+          <div style={{ border: "1px solid var(--border-subtle)", background: "var(--surface-1)" }}>
             <div
               style={{
                 padding: "1rem 1.25rem",
-                borderBottom: "1px solid #18181b",
+                borderBottom: "1px solid var(--border-subtle)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-                <div style={{ width: "3px", height: "1rem", background: "#f59e0b", flexShrink: 0 }} />
-                <span style={{ fontSize: "0.68rem", fontWeight: 800, fontStyle: "italic", letterSpacing: "0.1em", textTransform: "uppercase", color: "#f4f4f5" }}>
+                <div style={{ width: "3px", height: "1rem", background: "var(--amber-vivid)", flexShrink: 0 }} />
+                <span style={{ fontSize: "0.68rem", fontWeight: 800, fontStyle: "italic", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-100)" }}>
                   Upcoming Matches
                 </span>
               </div>
-              <Link href="/scenario" style={{ fontSize: "0.65rem", fontFamily: "var(--font-mono)", color: "#a3e635", textDecoration: "none", letterSpacing: "0.04em" }}>
+              <Link href="/scenario" style={{ fontSize: "0.65rem", fontFamily: "var(--font-mono)", color: "var(--cyan-vivid)", textDecoration: "none", letterSpacing: "0.04em" }}>
                 SIMULATE →
               </Link>
             </div>
@@ -265,7 +265,7 @@ export default async function Home() {
                       key={fixture.id}
                       style={{
                         padding: "0.65rem 0.85rem",
-                        border: "1px solid #18181b",
+                        border: "1px solid var(--border-subtle)",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "space-between",
@@ -277,14 +277,14 @@ export default async function Home() {
                           {homeFlag && (
                             <img src={`https://flagcdn.com/w40/${homeFlag}.png`} alt="" width={16} height={11} style={{ objectFit: "cover", flexShrink: 0 }} />
                           )}
-                          <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "#f4f4f5" }}>{home}</span>
-                          <span style={{ color: "#52525b", fontSize: "0.72rem" }}>vs</span>
+                          <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--text-100)" }}>{home}</span>
+                          <span style={{ color: "var(--text-500)", fontSize: "0.72rem" }}>vs</span>
                           {awayFlag && (
                             <img src={`https://flagcdn.com/w40/${awayFlag}.png`} alt="" width={16} height={11} style={{ objectFit: "cover", flexShrink: 0 }} />
                           )}
-                          <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "#f4f4f5" }}>{away}</span>
+                          <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--text-100)" }}>{away}</span>
                         </div>
-                        <p style={{ fontSize: "0.68rem", color: "#52525b", margin: 0, fontFamily: "var(--font-mono)" }}>
+                        <p style={{ fontSize: "0.68rem", color: "var(--text-500)", margin: 0, fontFamily: "var(--font-mono)" }}>
                           {formatDateTime(fixture.dateUtc)} UTC
                         </p>
                       </div>
@@ -296,8 +296,8 @@ export default async function Home() {
                             letterSpacing: "0.1em",
                             textTransform: "uppercase",
                             padding: "0.15rem 0.5rem",
-                            background: "#a3e635",
-                            color: "#000",
+                            background: "var(--cyan-vivid)",
+                            color: "var(--surface-0)",
                             transform: "skewX(-8deg)",
                             display: "inline-block",
                             flexShrink: 0,
@@ -314,18 +314,18 @@ export default async function Home() {
           </div>
 
           {/* Qualification Risk */}
-          <div style={{ border: "1px solid #18181b", background: "#0a0a0a" }}>
+          <div style={{ border: "1px solid var(--border-subtle)", background: "var(--surface-1)" }}>
             <div
               style={{
                 padding: "1rem 1.25rem",
-                borderBottom: "1px solid #18181b",
+                borderBottom: "1px solid var(--border-subtle)",
                 display: "flex",
                 alignItems: "center",
                 gap: "0.6rem",
               }}
             >
-              <div style={{ width: "3px", height: "1rem", background: "#f43f5e", flexShrink: 0 }} />
-              <span style={{ fontSize: "0.68rem", fontWeight: 800, fontStyle: "italic", letterSpacing: "0.1em", textTransform: "uppercase", color: "#f4f4f5" }}>
+              <div style={{ width: "3px", height: "1rem", background: "var(--rose-vivid)", flexShrink: 0 }} />
+              <span style={{ fontSize: "0.68rem", fontWeight: 800, fontStyle: "italic", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-100)" }}>
                 Qualification Risk
               </span>
             </div>
@@ -355,11 +355,11 @@ export default async function Home() {
       </div>
 
       {/* ── DATA PIPELINE ────────────────────────────────────────────── */}
-      <div className="animate-fade-up animate-fade-up-delay-2" style={{ border: "1px solid #18181b", marginBottom: "3rem" }}>
-        <div style={{ padding: "1rem 1.25rem", borderBottom: "1px solid #18181b", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.5rem" }}>
+      <div className="animate-fade-up animate-fade-up-delay-2" style={{ border: "1px solid var(--border-subtle)", marginBottom: "3rem" }}>
+        <div style={{ padding: "1rem 1.25rem", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.5rem" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-            <div style={{ width: "3px", height: "1rem", background: "#a3e635", flexShrink: 0 }} />
-            <span style={{ fontSize: "0.68rem", fontWeight: 800, fontStyle: "italic", letterSpacing: "0.1em", textTransform: "uppercase", color: "#f4f4f5" }}>
+            <div style={{ width: "3px", height: "1rem", background: "var(--cyan-vivid)", flexShrink: 0 }} />
+            <span style={{ fontSize: "0.68rem", fontWeight: 800, fontStyle: "italic", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-100)" }}>
               Data Pipeline
             </span>
           </div>
@@ -373,18 +373,18 @@ export default async function Home() {
           {snapshot.diagnostics.attempts.map((attempt) => (
             <div
               key={`${attempt.provider}-${attempt.checkedAt}`}
-              style={{ padding: "0.85rem 1rem", border: "1px solid #18181b", background: "#111111" }}
+              style={{ padding: "0.85rem 1rem", border: "1px solid var(--border-subtle)", background: "var(--surface-1)" }}
             >
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem", marginBottom: "0.5rem" }}>
-                <p style={{ margin: 0, fontSize: "0.8rem", fontWeight: 700, color: "#f4f4f5" }}>
+                <p style={{ margin: 0, fontSize: "0.8rem", fontWeight: 700, color: "var(--text-100)" }}>
                   {providerLabel[attempt.provider] ?? attempt.provider}
                 </p>
                 <span className="badge" style={{ fontSize: "0.58rem" }}>{attempt.status}</span>
               </div>
-              <p style={{ margin: 0, fontSize: "0.72rem", color: "#71717a", lineHeight: 1.5 }}>
+              <p style={{ margin: 0, fontSize: "0.72rem", color: "var(--text-400)", lineHeight: 1.5 }}>
                 {attempt.message}
               </p>
-              <p style={{ margin: "0.45rem 0 0", fontSize: "0.65rem", color: "#52525b", fontFamily: "var(--font-mono)" }}>
+              <p style={{ margin: "0.45rem 0 0", fontSize: "0.65rem", color: "var(--text-500)", fontFamily: "var(--font-mono)" }}>
                 T:{attempt.meta?.teamCount ?? "—"} F:{attempt.meta?.fixtureCount ?? "—"} P:{attempt.meta?.playerCount ?? "—"}
               </p>
             </div>
@@ -403,12 +403,12 @@ export default async function Home() {
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-            <div style={{ width: "3px", height: "1rem", background: "#a3e635", flexShrink: 0 }} />
-            <span style={{ fontSize: "0.68rem", fontWeight: 800, fontStyle: "italic", letterSpacing: "0.1em", textTransform: "uppercase", color: "#f4f4f5" }}>
+            <div style={{ width: "3px", height: "1rem", background: "var(--cyan-vivid)", flexShrink: 0 }} />
+            <span style={{ fontSize: "0.68rem", fontWeight: 800, fontStyle: "italic", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-100)" }}>
               Wand Agent Intelligence
             </span>
           </div>
-          <Link href="/agent-feed" style={{ fontSize: "0.65rem", fontFamily: "var(--font-mono)", color: "#a3e635", textDecoration: "none", letterSpacing: "0.04em" }}>
+          <Link href="/agent-feed" style={{ fontSize: "0.65rem", fontFamily: "var(--font-mono)", color: "var(--cyan-vivid)", textDecoration: "none", letterSpacing: "0.04em" }}>
             FULL FEED →
           </Link>
         </div>
@@ -423,13 +423,13 @@ export default async function Home() {
       {/* ── COMING SOON ──────────────────────────────────────────────── */}
       <div className="animate-fade-up animate-fade-up-delay-4" style={{ marginBottom: "3rem" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "1rem" }}>
-          <div style={{ width: "3px", height: "1rem", background: "#52525b", flexShrink: 0 }} />
-          <span style={{ fontSize: "0.68rem", fontWeight: 800, fontStyle: "italic", letterSpacing: "0.1em", textTransform: "uppercase", color: "#71717a" }}>
+          <div style={{ width: "3px", height: "1rem", background: "var(--text-500)", flexShrink: 0 }} />
+          <span style={{ fontSize: "0.68rem", fontWeight: 800, fontStyle: "italic", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-400)" }}>
             Expand The Lab
           </span>
         </div>
 
-        <div style={{ display: "grid", gap: "1px", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", background: "#18181b", border: "1px solid #18181b" }}>
+        <div style={{ display: "grid", gap: "1px", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", background: "var(--border-subtle)", border: "1px solid var(--border-subtle)" }}>
           {[
             { name: "Copa América 2027",   region: "CONMEBOL",  months: "Summer 2027" },
             { name: "UEFA Euro 2028",       region: "UEFA",      months: "Summer 2028" },
@@ -439,16 +439,16 @@ export default async function Home() {
             <div
               key={comp.name}
               className="coming-soon-panel"
-              style={{ padding: "1.1rem 1.25rem", background: "#0a0a0a", opacity: 0.55, cursor: "not-allowed" }}
+              style={{ padding: "1.1rem 1.25rem", background: "var(--surface-1)", opacity: 0.55, cursor: "not-allowed" }}
             >
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.4rem" }}>
                 <span className="badge" style={{ fontSize: "0.58rem" }}>{comp.region}</span>
-                <span style={{ fontSize: "0.58rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#52525b" }}>
+                <span style={{ fontSize: "0.58rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-500)" }}>
                   Soon
                 </span>
               </div>
-              <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 700, color: "#a1a1aa", fontStyle: "italic", textTransform: "uppercase" }}>{comp.name}</p>
-              <p style={{ margin: "0.15rem 0 0", fontSize: "0.68rem", color: "#52525b" }}>{comp.months}</p>
+              <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 700, color: "var(--text-300)", fontStyle: "italic", textTransform: "uppercase" }}>{comp.name}</p>
+              <p style={{ margin: "0.15rem 0 0", fontSize: "0.68rem", color: "var(--text-500)" }}>{comp.months}</p>
             </div>
           ))}
         </div>

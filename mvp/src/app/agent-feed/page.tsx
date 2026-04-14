@@ -80,7 +80,7 @@ export default async function AgentFeedPage() {
               background: "linear-gradient(135deg, var(--cyan-mid), #0044bb)",
               boxShadow: "0 0 24px rgba(0,180,255,0.35)",
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: "1.1rem", fontWeight: 800, color: "#fff",
+              fontSize: "1.1rem", fontWeight: 800, color: "var(--text-100)",
               fontFamily: "var(--font-mono)",
               flexShrink: 0,
             }}

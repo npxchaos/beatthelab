@@ -47,9 +47,9 @@ const ScoreInput = ({
       fontSize: "1rem",
       fontWeight: 900,
       fontStyle: "italic",
-      background: locked ? "#111" : "#1a1a1a",
-      border: `1px solid ${locked ? "#27272a" : "#3f3f46"}`,
-      color: locked ? "#71717a" : "#f4f4f5",
+      background: locked ? "var(--surface-1)" : "var(--surface-2)",
+      border: `1px solid ${locked ? "var(--border-default)" : "var(--border-default)"}`,
+      color: locked ? "var(--text-400)" : "var(--text-100)",
       fontFamily: "var(--font-sans)",
       outline: "none",
       cursor: locked ? "not-allowed" : "text",
@@ -68,8 +68,8 @@ const HitBadge = ({ hit }: { hit: boolean }) => (
       letterSpacing: "0.1em",
       textTransform: "uppercase",
       padding: "0.15rem 0.5rem",
-      background: hit ? "#a3e635" : "#f43f5e",
-      color: hit ? "#000" : "#fff",
+      background: hit ? "var(--cyan-vivid)" : "var(--rose-vivid)",
+      color: hit ? "var(--surface-0)" : "var(--text-100)",
       transform: "skewX(-8deg)",
       display: "inline-block",
       flexShrink: 0,
@@ -159,24 +159,24 @@ export function PredictClient({
       <div>
         <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "1.25rem" }}>
           <div className="live-dot" />
-          <span style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", color: "#71717a" }}>
+          <span style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--text-400)" }}>
             World Cup 2026 · Prediction Game
           </span>
         </div>
         <h1 className="text-sport-hero" style={{ margin: "0 0 0.75rem" }}>
           Beat<br />
-          <span style={{ color: "#a3e635" }}>The Lab.</span>
+          <span style={{ color: "var(--cyan-vivid)" }}>The Lab.</span>
         </h1>
-        <p style={{ margin: 0, maxWidth: "500px", fontSize: "0.9rem", color: "#71717a", lineHeight: 1.6 }}>
+        <p style={{ margin: 0, maxWidth: "500px", fontSize: "0.9rem", color: "var(--text-400)", lineHeight: 1.6 }}>
           Pick match scores and tournament winners. We'll show you how your predictions
           stack up against 10,000 AI simulations when the tournament ends.
         </p>
       </div>
 
       {/* ── Progress bar ───────────────────────────────────────────── */}
-      <div style={{ border: "1px solid #18181b", padding: "1rem 1.25rem" }}>
+      <div style={{ border: "1px solid var(--border-subtle)", padding: "1rem 1.25rem" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.6rem" }}>
-          <span style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#71717a" }}>
+          <span style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-400)" }}>
             {locked ? "Picks Locked" : `${totalPicks} / ${upcoming.length + 4} picks made`}
           </span>
           {locked ? (
@@ -187,8 +187,8 @@ export function PredictClient({
                 letterSpacing: "0.1em",
                 textTransform: "uppercase",
                 padding: "0.2rem 0.6rem",
-                background: "#a3e635",
-                color: "#000",
+                background: "var(--cyan-vivid)",
+                color: "var(--surface-0)",
                 transform: "skewX(-8deg)",
                 display: "inline-block",
               }}
@@ -206,11 +206,11 @@ export function PredictClient({
             </button>
           )}
         </div>
-        <div style={{ height: "3px", background: "#18181b" }}>
+        <div style={{ height: "3px", background: "var(--border-subtle)" }}>
           <div
             style={{
               height: "100%",
-              background: locked ? "#a3e635" : "#3f3f46",
+              background: locked ? "var(--cyan-vivid)" : "var(--border-default)",
               width: `${Math.min(100, (totalPicks / (upcoming.length + 4)) * 100)}%`,
               transition: "width 0.4s ease",
             }}
@@ -224,16 +224,16 @@ export function PredictClient({
         {/* YOUR PICKS */}
         <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-            <div style={{ width: "3px", height: "1rem", background: "#a3e635", flexShrink: 0 }} />
-            <span style={{ fontSize: "0.68rem", fontWeight: 800, fontStyle: "italic", letterSpacing: "0.1em", textTransform: "uppercase", color: "#f4f4f5" }}>
+            <div style={{ width: "3px", height: "1rem", background: "var(--cyan-vivid)", flexShrink: 0 }} />
+            <span style={{ fontSize: "0.68rem", fontWeight: 800, fontStyle: "italic", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-100)" }}>
               Your Picks
             </span>
           </div>
 
           {/* Match score predictions */}
-          <div style={{ border: "1px solid #18181b" }}>
-            <div style={{ padding: "0.75rem 1rem", borderBottom: "1px solid #18181b" }}>
-              <span style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#71717a" }}>
+          <div style={{ border: "1px solid var(--border-subtle)" }}>
+            <div style={{ padding: "0.75rem 1rem", borderBottom: "1px solid var(--border-subtle)" }}>
+              <span style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-400)" }}>
                 Match Score Predictions
               </span>
             </div>
@@ -250,7 +250,7 @@ export function PredictClient({
                     key={fixture.id}
                     style={{
                       padding: "0.7rem 0.5rem",
-                      borderBottom: "1px solid #18181b",
+                      borderBottom: "1px solid var(--border-subtle)",
                       display: "flex",
                       alignItems: "center",
                       gap: "0.5rem",
@@ -258,7 +258,7 @@ export function PredictClient({
                   >
                     {/* Home */}
                     <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "0.4rem", justifyContent: "flex-end", minWidth: 0 }}>
-                      <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#f4f4f5", textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--text-100)", textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {home.name}
                       </span>
                       {home.flagCode && (
@@ -269,7 +269,7 @@ export function PredictClient({
                     {/* Score inputs */}
                     <div style={{ display: "flex", alignItems: "center", gap: "0.3rem", flexShrink: 0 }}>
                       <ScoreInput value={pick?.home ?? ""} onChange={(v) => setScorePicks((p) => ({ ...p, [fixture.id]: { ...p[fixture.id], home: v } }))} locked={locked} />
-                      <span style={{ color: "#52525b", fontWeight: 900, fontSize: "0.9rem" }}>:</span>
+                      <span style={{ color: "var(--text-500)", fontWeight: 900, fontSize: "0.9rem" }}>:</span>
                       <ScoreInput value={pick?.away ?? ""} onChange={(v) => setScorePicks((p) => ({ ...p, [fixture.id]: { ...p[fixture.id], away: v } }))} locked={locked} />
                     </div>
 
@@ -278,7 +278,7 @@ export function PredictClient({
                       {away.flagCode && (
                         <img src={`https://flagcdn.com/w40/${away.flagCode}.png`} alt="" width={18} height={12} style={{ objectFit: "cover", flexShrink: 0 }} />
                       )}
-                      <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#f4f4f5", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--text-100)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {away.name}
                       </span>
                     </div>
@@ -292,9 +292,9 @@ export function PredictClient({
           </div>
 
           {/* Outright picks */}
-          <div style={{ border: "1px solid #18181b" }}>
-            <div style={{ padding: "0.75rem 1rem", borderBottom: "1px solid #18181b" }}>
-              <span style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#71717a" }}>
+          <div style={{ border: "1px solid var(--border-subtle)" }}>
+            <div style={{ padding: "0.75rem 1rem", borderBottom: "1px solid var(--border-subtle)" }}>
+              <span style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-400)" }}>
                 Tournament Outrights
               </span>
             </div>
@@ -306,7 +306,7 @@ export function PredictClient({
                 ] as { id: OutrightId; label: string; options: Team[] }[]
               ).map(({ id, label, options }) => (
                 <div key={id}>
-                  <label style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#71717a", display: "block", marginBottom: "0.35rem" }}>
+                  <label style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-400)", display: "block", marginBottom: "0.35rem" }}>
                     {label}
                   </label>
                   <select
@@ -316,9 +316,9 @@ export function PredictClient({
                     style={{
                       width: "100%",
                       padding: "0.5rem 0.75rem",
-                      background: locked ? "#111" : "#1a1a1a",
-                      border: "1px solid #3f3f46",
-                      color: outrightPicks[id] ? "#f4f4f5" : "#52525b",
+                      background: locked ? "var(--surface-1)" : "var(--surface-2)",
+                      border: "1px solid var(--border-default)",
+                      color: outrightPicks[id] ? "var(--text-100)" : "var(--text-500)",
                       fontSize: "0.82rem",
                       fontWeight: 600,
                       fontFamily: "var(--font-sans)",
@@ -343,7 +343,7 @@ export function PredictClient({
                 ] as { id: OutrightId; label: string; options: Player[] }[]
               ).map(({ id, label, options }) => (
                 <div key={id}>
-                  <label style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#71717a", display: "block", marginBottom: "0.35rem" }}>
+                  <label style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-400)", display: "block", marginBottom: "0.35rem" }}>
                     {label}
                   </label>
                   <select
@@ -353,9 +353,9 @@ export function PredictClient({
                     style={{
                       width: "100%",
                       padding: "0.5rem 0.75rem",
-                      background: locked ? "#111" : "#1a1a1a",
-                      border: "1px solid #3f3f46",
-                      color: outrightPicks[id] ? "#f4f4f5" : "#52525b",
+                      background: locked ? "var(--surface-1)" : "var(--surface-2)",
+                      border: "1px solid var(--border-default)",
+                      color: outrightPicks[id] ? "var(--text-100)" : "var(--text-500)",
                       fontSize: "0.82rem",
                       fontWeight: 600,
                       fontFamily: "var(--font-sans)",
@@ -384,8 +384,8 @@ export function PredictClient({
         {/* THE LAB */}
         <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-            <div style={{ width: "3px", height: "1rem", background: "#f59e0b", flexShrink: 0 }} />
-            <span style={{ fontSize: "0.68rem", fontWeight: 800, fontStyle: "italic", letterSpacing: "0.1em", textTransform: "uppercase", color: "#f4f4f5" }}>
+            <div style={{ width: "3px", height: "1rem", background: "var(--amber-vivid)", flexShrink: 0 }} />
+            <span style={{ fontSize: "0.68rem", fontWeight: 800, fontStyle: "italic", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-100)" }}>
               The Lab&apos;s Predictions
             </span>
             <span
@@ -395,8 +395,8 @@ export function PredictClient({
                 letterSpacing: "0.1em",
                 textTransform: "uppercase",
                 padding: "0.12rem 0.45rem",
-                background: "rgba(163,230,53,0.12)",
-                color: "#a3e635",
+                background: "var(--cyan-soft)",
+                color: "var(--cyan-vivid)",
                 border: "1px solid rgba(163,230,53,0.25)",
               }}
             >
@@ -405,9 +405,9 @@ export function PredictClient({
           </div>
 
           {/* Lab match predictions */}
-          <div style={{ border: "1px solid #18181b" }}>
-            <div style={{ padding: "0.75rem 1rem", borderBottom: "1px solid #18181b" }}>
-              <span style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#71717a" }}>
+          <div style={{ border: "1px solid var(--border-subtle)" }}>
+            <div style={{ padding: "0.75rem 1rem", borderBottom: "1px solid var(--border-subtle)" }}>
+              <span style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-400)" }}>
                 AI Score Forecast
               </span>
             </div>
@@ -426,15 +426,15 @@ export function PredictClient({
                     key={fixture.id}
                     style={{
                       padding: "0.7rem 0.5rem",
-                      borderBottom: "1px solid #18181b",
+                      borderBottom: "1px solid var(--border-subtle)",
                       display: "flex",
                       alignItems: "center",
                       gap: "0.5rem",
-                      background: matchHit === true ? "rgba(163,230,53,0.04)" : matchHit === false ? "rgba(244,63,94,0.04)" : "transparent",
+                      background: matchHit === true ? "rgba(0,212,255,0.04)" : matchHit === false ? "rgba(255,61,113,0.04)" : "transparent",
                     }}
                   >
                     <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "0.4rem", justifyContent: "flex-end", minWidth: 0 }}>
-                      <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "#a1a1aa", textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--text-300)", textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {home.name}
                       </span>
                     </div>
@@ -446,17 +446,17 @@ export function PredictClient({
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          background: "#111",
-                          border: "1px solid #27272a",
+                          background: "var(--surface-1)",
+                          border: "1px solid var(--border-default)",
                           fontSize: "1rem",
                           fontWeight: 900,
                           fontStyle: "italic",
-                          color: "#f59e0b",
+                          color: "var(--amber-vivid)",
                         }}
                       >
                         {lh}
                       </span>
-                      <span style={{ color: "#52525b", fontWeight: 900, fontSize: "0.9rem" }}>:</span>
+                      <span style={{ color: "var(--text-500)", fontWeight: 900, fontSize: "0.9rem" }}>:</span>
                       <span
                         style={{
                           width: "2.4rem",
@@ -464,19 +464,19 @@ export function PredictClient({
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          background: "#111",
-                          border: "1px solid #27272a",
+                          background: "var(--surface-1)",
+                          border: "1px solid var(--border-default)",
                           fontSize: "1rem",
                           fontWeight: 900,
                           fontStyle: "italic",
-                          color: "#f59e0b",
+                          color: "var(--amber-vivid)",
                         }}
                       >
                         {la}
                       </span>
                     </div>
                     <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "0.4rem", minWidth: 0 }}>
-                      <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "#a1a1aa", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--text-300)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {away.name}
                       </span>
                     </div>
@@ -487,75 +487,75 @@ export function PredictClient({
           </div>
 
           {/* Lab outright predictions */}
-          <div style={{ border: "1px solid #18181b" }}>
-            <div style={{ padding: "0.75rem 1rem", borderBottom: "1px solid #18181b" }}>
-              <span style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#71717a" }}>
+          <div style={{ border: "1px solid var(--border-subtle)" }}>
+            <div style={{ padding: "0.75rem 1rem", borderBottom: "1px solid var(--border-subtle)" }}>
+              <span style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-400)" }}>
                 AI Tournament Outlook
               </span>
             </div>
             <div style={{ padding: "0.75rem", display: "flex", flexDirection: "column", gap: "0" }}>
 
               {/* Champion */}
-              <div style={{ padding: "0.85rem 0", borderBottom: "1px solid #18181b" }}>
+              <div style={{ padding: "0.85rem 0", borderBottom: "1px solid var(--border-subtle)" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.4rem" }}>
-                  <span style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#71717a" }}>Champion</span>
+                  <span style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-400)" }}>Champion</span>
                   {locked && champMatch !== null && <HitBadge hit={champMatch} />}
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                   {lab.champion.team.flagCode && (
                     <img src={`https://flagcdn.com/w40/${lab.champion.team.flagCode}.png`} alt="" width={22} height={15} style={{ objectFit: "cover" }} />
                   )}
-                  <span style={{ fontSize: "0.95rem", fontWeight: 900, fontStyle: "italic", textTransform: "uppercase", color: "#f59e0b" }}>
+                  <span style={{ fontSize: "0.95rem", fontWeight: 900, fontStyle: "italic", textTransform: "uppercase", color: "var(--amber-vivid)" }}>
                     {lab.champion.team.name}
                   </span>
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.75rem", color: "#71717a", marginLeft: "auto" }}>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.75rem", color: "var(--text-400)", marginLeft: "auto" }}>
                     {toPercent(lab.champion.prob)}
                   </span>
                 </div>
                 {/* Mini prob bar */}
-                <div style={{ height: "2px", background: "#18181b", marginTop: "0.5rem" }}>
-                  <div style={{ height: "100%", width: `${Math.round(lab.champion.prob * 100)}%`, background: "#f59e0b" }} />
+                <div style={{ height: "2px", background: "var(--border-subtle)", marginTop: "0.5rem" }}>
+                  <div style={{ height: "100%", width: `${Math.round(lab.champion.prob * 100)}%`, background: "var(--amber-vivid)" }} />
                 </div>
               </div>
 
               {/* Finalist */}
-              <div style={{ padding: "0.85rem 0", borderBottom: "1px solid #18181b" }}>
+              <div style={{ padding: "0.85rem 0", borderBottom: "1px solid var(--border-subtle)" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.4rem" }}>
-                  <span style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#71717a" }}>Finalist</span>
+                  <span style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-400)" }}>Finalist</span>
                   {locked && finalistMatch !== null && <HitBadge hit={finalistMatch} />}
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                   {lab.finalist.team.flagCode && (
                     <img src={`https://flagcdn.com/w40/${lab.finalist.team.flagCode}.png`} alt="" width={22} height={15} style={{ objectFit: "cover" }} />
                   )}
-                  <span style={{ fontSize: "0.95rem", fontWeight: 900, fontStyle: "italic", textTransform: "uppercase", color: "#a3e635" }}>
+                  <span style={{ fontSize: "0.95rem", fontWeight: 900, fontStyle: "italic", textTransform: "uppercase", color: "var(--cyan-vivid)" }}>
                     {lab.finalist.team.name}
                   </span>
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.75rem", color: "#71717a", marginLeft: "auto" }}>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.75rem", color: "var(--text-400)", marginLeft: "auto" }}>
                     {toPercent(lab.finalist.prob)}
                   </span>
                 </div>
-                <div style={{ height: "2px", background: "#18181b", marginTop: "0.5rem" }}>
-                  <div style={{ height: "100%", width: `${Math.round(lab.finalist.prob * 100)}%`, background: "#a3e635" }} />
+                <div style={{ height: "2px", background: "var(--border-subtle)", marginTop: "0.5rem" }}>
+                  <div style={{ height: "100%", width: `${Math.round(lab.finalist.prob * 100)}%`, background: "var(--cyan-vivid)" }} />
                 </div>
               </div>
 
               {/* Golden Boot */}
               {lab.topScorer && (
-                <div style={{ padding: "0.85rem 0", borderBottom: "1px solid #18181b" }}>
-                  <span style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#71717a", display: "block", marginBottom: "0.4rem" }}>
+                <div style={{ padding: "0.85rem 0", borderBottom: "1px solid var(--border-subtle)" }}>
+                  <span style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-400)", display: "block", marginBottom: "0.4rem" }}>
                     Golden Boot Favorite
                   </span>
                   <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                    <span style={{ fontSize: "0.9rem", fontWeight: 900, fontStyle: "italic", textTransform: "uppercase", color: "#f4f4f5" }}>
+                    <span style={{ fontSize: "0.9rem", fontWeight: 900, fontStyle: "italic", textTransform: "uppercase", color: "var(--text-100)" }}>
                       {lab.topScorer.player.name}
                     </span>
-                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.72rem", color: "#71717a", marginLeft: "auto" }}>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.72rem", color: "var(--text-400)", marginLeft: "auto" }}>
                       {toPercent(lab.topScorer.prob)}
                     </span>
                   </div>
-                  <div style={{ height: "2px", background: "#18181b", marginTop: "0.5rem" }}>
-                    <div style={{ height: "100%", width: `${Math.round(lab.topScorer.prob * 100)}%`, background: "#22c55e" }} />
+                  <div style={{ height: "2px", background: "var(--border-subtle)", marginTop: "0.5rem" }}>
+                    <div style={{ height: "100%", width: `${Math.round(lab.topScorer.prob * 100)}%`, background: "var(--green-vivid)" }} />
                   </div>
                 </div>
               )}
@@ -563,19 +563,19 @@ export function PredictClient({
               {/* Top Assist */}
               {lab.topAssist && (
                 <div style={{ padding: "0.85rem 0" }}>
-                  <span style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#71717a", display: "block", marginBottom: "0.4rem" }}>
+                  <span style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-400)", display: "block", marginBottom: "0.4rem" }}>
                     Top Assists Favorite
                   </span>
                   <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                    <span style={{ fontSize: "0.9rem", fontWeight: 900, fontStyle: "italic", textTransform: "uppercase", color: "#f4f4f5" }}>
+                    <span style={{ fontSize: "0.9rem", fontWeight: 900, fontStyle: "italic", textTransform: "uppercase", color: "var(--text-100)" }}>
                       {lab.topAssist.player.name}
                     </span>
-                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.72rem", color: "#71717a", marginLeft: "auto" }}>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.72rem", color: "var(--text-400)", marginLeft: "auto" }}>
                       {toPercent(lab.topAssist.prob)}
                     </span>
                   </div>
-                  <div style={{ height: "2px", background: "#18181b", marginTop: "0.5rem" }}>
-                    <div style={{ height: "100%", width: `${Math.round(lab.topAssist.prob * 100)}%`, background: "#22c55e" }} />
+                  <div style={{ height: "2px", background: "var(--border-subtle)", marginTop: "0.5rem" }}>
+                    <div style={{ height: "100%", width: `${Math.round(lab.topAssist.prob * 100)}%`, background: "var(--green-vivid)" }} />
                   </div>
                 </div>
               )}
@@ -584,18 +584,18 @@ export function PredictClient({
 
           {/* Accuracy summary (post-lock) */}
           {locked && (
-            <div style={{ border: "1px solid rgba(163,230,53,0.3)", background: "rgba(163,230,53,0.04)", padding: "1rem 1.25rem" }}>
+            <div style={{ border: "1px solid rgba(163,230,53,0.3)", background: "rgba(0,212,255,0.04)", padding: "1rem 1.25rem" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "0.75rem" }}>
-                <div style={{ width: "3px", height: "1rem", background: "#a3e635", flexShrink: 0 }} />
-                <span style={{ fontSize: "0.65rem", fontWeight: 800, fontStyle: "italic", letterSpacing: "0.1em", textTransform: "uppercase", color: "#f4f4f5" }}>
+                <div style={{ width: "3px", height: "1rem", background: "var(--cyan-vivid)", flexShrink: 0 }} />
+                <span style={{ fontSize: "0.65rem", fontWeight: 800, fontStyle: "italic", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-100)" }}>
                   Alignment With The Lab
                 </span>
               </div>
-              <p style={{ margin: 0, fontSize: "0.8rem", color: "#71717a", lineHeight: 1.6 }}>
+              <p style={{ margin: 0, fontSize: "0.8rem", color: "var(--text-400)", lineHeight: 1.6 }}>
                 Your picks are locked. Come back after each match to see
                 how your predictions compared to the AI. Results update live.
               </p>
-              <p style={{ margin: "0.6rem 0 0", fontSize: "0.68rem", fontFamily: "var(--font-mono)", color: "#52525b", textTransform: "uppercase" }}>
+              <p style={{ margin: "0.6rem 0 0", fontSize: "0.68rem", fontFamily: "var(--font-mono)", color: "var(--text-500)", textTransform: "uppercase" }}>
                 Tournament begins Jun 11, 2026
               </p>
             </div>
