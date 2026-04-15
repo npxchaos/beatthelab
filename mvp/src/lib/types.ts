@@ -91,7 +91,7 @@ export interface PlayerForecast {
 
 export interface AgentInsight {
   id: string;
-  agent: "Schedule Agent" | "Strength Agent" | "Player Signal Agent" | "Scenario Agent" | "Narrative Agent" | "Risk Agent";
+  agent: "Schedule Agent" | "Strength Agent" | "Player Signal Agent" | "Scenario Agent" | "Narrative Agent" | "Risk Agent" | "Path Agent";
   severity: "info" | "warning" | "critical";
   createdAt: string;
   summary: string;

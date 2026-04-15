@@ -23,7 +23,7 @@ export default async function TeamsPage() {
       <div className="animate-fade-up">
         <span className="badge badge-cyan" style={{ marginBottom: "0.9rem" }}>Team Lab</span>
         <h1 className="text-display">
-          Team Pathways &{" "}
+          Team{" "}
           <span style={{ color: "var(--cyan-bright)" }}>Outlooks</span>
         </h1>
         <p style={{ marginTop: "0.75rem", maxWidth: "540px", fontSize: "0.95rem", color: "var(--text-300)", lineHeight: 1.65 }}>
@@ -187,6 +187,16 @@ export default async function TeamsPage() {
             })}
           </tbody>
         </table>
+      </div>
+
+      {/* ── CTA ── */}
+      <div style={{ border: "1px solid var(--border-accent)", background: "var(--cyan-soft)", padding: "1.25rem 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
+        <p style={{ margin: 0, fontSize: "0.88rem", fontWeight: 700, color: "var(--text-200)" }}>
+          Ready to back your analysis? <span style={{ color: "var(--text-400)", fontWeight: 400 }}>Pick your champion and lock in your predictions.</span>
+        </p>
+        <Link href="/predict" style={{ display: "inline-block", padding: "0.55rem 1.4rem", background: "var(--cyan-vivid)", color: "var(--surface-0)", fontSize: "0.78rem", fontWeight: 900, fontStyle: "italic", letterSpacing: "0.08em", textTransform: "uppercase", textDecoration: "none", transform: "skewX(-8deg)", flexShrink: 0 }}>
+          <span style={{ transform: "skewX(8deg)", display: "inline-block" }}>Pick Your Champion →</span>
+        </Link>
       </div>
     </div>
   );

@@ -57,6 +57,10 @@
   --border-accent: rgba(0, 212, 255, 0.30);
   --border-hover: rgba(255, 255, 255, 0.15);
 
+  /* Overlay / dropdown — always opaque so they don't bleed through ambient blobs */
+  --overlay-bg: #130424;
+  --overlay-border: rgba(0, 212, 255, 0.28);
+
   /* Shadows */
   --shadow-panel: 0 4px 24px -1px rgba(0, 0, 0, 0.5);
   --shadow-glow: 0 0 40px rgba(0, 212, 255, 0.12);
@@ -219,9 +223,6 @@ button {
 .panel {
   background: var(--surface-1);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
   box-shadow: var(--shadow-panel);
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -234,20 +235,17 @@ button {
 .panel-elevated {
   background: linear-gradient(145deg, var(--surface-2) 0%, var(--surface-1) 100%);
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-panel), var(--shadow-glow);
 }
 
 .panel-ghost {
   background: rgba(255, 255, 255, 0.025);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
 }
 
 .panel-accent {
   background: linear-gradient(135deg, rgba(0, 180, 255, 0.08) 0%, rgba(0, 100, 200, 0.05) 100%);
   border: 1px solid var(--border-accent);
-  border-radius: var(--radius-lg);
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -303,7 +301,6 @@ button {
   justify-content: center;
   gap: 0.5rem;
   padding: 0.55rem 1.25rem;
-  border-radius: var(--radius-md);
   font-size: 0.85rem;
   font-weight: 600;
   border: none;
@@ -337,7 +334,6 @@ button {
 .btn-sm {
   padding: 0.38rem 0.85rem;
   font-size: 0.78rem;
-  border-radius: var(--radius-sm);
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -450,7 +446,6 @@ button {
 .agent-card {
   position: relative;
   padding: 1.1rem 1.25rem;
-  border-radius: var(--radius-md);
   background: rgba(255, 255, 255, 0.025);
   border: 1px solid var(--border-subtle);
   transition: border-color 0.2s ease, background 0.2s ease;
@@ -514,7 +509,6 @@ button {
   align-items: center;
   gap: 0.75rem;
   padding: 0.65rem 1rem;
-  border-radius: var(--radius-md);
   background: linear-gradient(90deg, rgba(0, 212, 255, 0.07), rgba(0, 100, 255, 0.04));
   border: 1px solid rgba(0, 212, 255, 0.18);
   font-size: 0.78rem;
