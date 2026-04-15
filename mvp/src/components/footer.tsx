@@ -85,11 +85,11 @@ export const Footer = () => (
             Product
           </p>
           {[
-            { label: "Outlook",       href: "/" },
+            { label: "Home",          href: "/" },
             { label: "Teams",         href: "/teams" },
             { label: "Players",       href: "/players" },
             { label: "Beat The Lab",  href: "/predict" },
-            { label: "Scenarios",     href: "/scenario" },
+            { label: "Leaderboard",   href: "/leaderboard" },
             { label: "Agent Feed",    href: "/agent-feed" },
           ].map(({ label, href }) => (
             <p key={label} style={{ margin: "0 0 0.65rem" }}>

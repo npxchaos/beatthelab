@@ -1,6 +1,15 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Team, TeamForecast, Player, PlayerForecast, Fixture } from "@/lib/types";
+import { toPercent } from "@/lib/view";
+import { SearchableSelect, type SelectOption } from "@/components/searchable-select";
+import { getAuthUser, getUserPicks, saveUserPicks, upsertLeaderboardEntry } from "@/lib/store";
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const GROUP_LETTERS = ["A","B","C","D","E","F","G","H","I","J","K","L"];
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 type LabPrediction = {
   champion:  { team: Team; prob: number };
@@ -9,363 +18,789 @@ type LabPrediction = {
   topAssist: { player: Player; prob: number } | null;
 };
 
-// ─── SVG Connector Lines for Bracket ───
-const BracketConnector = ({ style }: { style: React.CSSProperties }) => (
-  <svg
-    style={{ ...style, position: "absolute", zIndex: 0, pointerEvents: "none" }}
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <path
-      d="M 0 0 L 10 0 C 18 0 20 2 20 10 L 20 calc(100% - 10px) C 20 calc(100% - 2px) 22 100% 30 100% L 100% 100%"
-      stroke="var(--border-subtle)"
-      strokeWidth="2"
-      vectorEffect="non-scaling-stroke"
-    />
-  </svg>
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const SectionHeader = ({
+  label,
+  accent = "var(--cyan-vivid)",
+  sub,
+}: {
+  label: string;
+  accent?: string;
+  sub?: string;
+}) => (
+  <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1.25rem" }}>
+    <div style={{ width: "3px", height: "1.15rem", background: accent, flexShrink: 0 }} />
+    <div>
+      <span style={{
+        fontSize: "0.68rem", fontWeight: 800, fontStyle: "italic",
+        letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-100)",
+      }}>
+        {label}
+      </span>
+      {sub && (
+        <span style={{ marginLeft: "0.5rem", fontSize: "0.62rem", color: "var(--text-500)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+          {sub}
+        </span>
+      )}
+    </div>
+    <div style={{ flex: 1, height: "1px", background: "var(--border-subtle)" }} />
+  </div>
 );
+
+const LabChip = ({ text }: { text: string }) => (
+  <span style={{
+    display: "inline-flex", alignItems: "center",
+    padding: "0.12rem 0.45rem",
+    fontSize: "0.58rem", fontWeight: 800, letterSpacing: "0.08em",
+    textTransform: "uppercase",
+    background: "var(--cyan-soft)",
+    border: "1px solid rgba(0,212,255,0.25)",
+    color: "var(--cyan-vivid)",
+    whiteSpace: "nowrap",
+  }}>
+    AI · {text}
+  </span>
+);
+
+const NumberInput = ({
+  value, onChange, disabled, placeholder,
+}: {
+  value: string; onChange: (v: string) => void;
+  disabled: boolean; placeholder: string;
+}) => (
+  <input
+    type="number" min="0" max="30"
+    value={value}
+    onChange={(e) => onChange(e.target.value)}
+    disabled={disabled}
+    placeholder={placeholder}
+    style={{
+      width: "68px", padding: "0.55rem 0.5rem",
+      background: disabled ? "var(--surface-1)" : "var(--surface-2)",
+      border: "1px solid var(--border-default)",
+      color: "var(--text-100)", fontSize: "0.88rem", fontWeight: 800,
+      fontStyle: "italic", textAlign: "center", outline: "none",
+      fontFamily: "var(--font-sans)",
+      MozAppearance: "textfield",
+    } as React.CSSProperties}
+  />
+);
+
+// ─── Main component ───────────────────────────────────────────────────────────
 
 export function PredictClient({
   teams,
   players,
+  forecasts,
   lab,
 }: {
-  fixtures: Fixture[];
-  teams: Team[];
-  forecasts: TeamForecast[];
-  players: Player[];
+  fixtures:       Fixture[];
+  teams:          Team[];
+  forecasts:      TeamForecast[];
+  players:        Player[];
   playerForecasts: PlayerForecast[];
-  lab: LabPrediction;
+  lab:            LabPrediction;
 }) {
-  const teamsById = new Map(teams.map((t) => [t.id, t]));
-  const groupAObj = teams.filter((t) => t.group === "A");
-  const groupBObj = teams.filter((t) => t.group === "B");
+  const teamsById    = useMemo(() => new Map(teams.map((t) => [t.id, t])), [teams]);
+  const forecastById = useMemo(() => new Map(forecasts.map((f) => [f.teamId, f])), [forecasts]);
 
-  // State: Ordered group standings
-  const [groupA, setGroupA] = useState<string[]>(groupAObj.map((t) => t.id));
-  const [groupB, setGroupB] = useState<string[]>(groupBObj.map((t) => t.id));
+  // ── Group rankings ─────────────────────────────────────────────────────────
+  const initialRankings = useMemo(() => {
+    const r: Record<string, string[]> = {};
+    for (const g of GROUP_LETTERS) {
+      r[g] = teams
+        .filter((t) => t.group === g)
+        .sort((a, b) => {
+          const fa = forecastById.get(a.id)?.groupQualificationProbability ?? 0;
+          const fb = forecastById.get(b.id)?.groupQualificationProbability ?? 0;
+          return fb - fa;
+        })
+        .map((t) => t.id);
+    }
+    return r;
+  }, [teams, forecastById]);
 
-  // State: Knockout winners
-  const [sf1Winner, setSf1Winner] = useState<string | null>(null);
-  const [sf2Winner, setSf2Winner] = useState<string | null>(null);
-  const [champion, setChampion] = useState<string | null>(null);
+  const [rankings, setRankings] = useState<Record<string, string[]>>(initialRankings);
 
-  // State: Players
-  const [topScorerId, setTopScorerId] = useState("");
+  // ── Final picks ─────────────────────────────────────────────────────────────
+  const [champion, setChampion] = useState("");
+  const [finalist, setFinalist] = useState("");
+
+  // ── Awards ─────────────────────────────────────────────────────────────────
+  const [topScorerId,    setTopScorerId]    = useState("");
   const [topScorerGoals, setTopScorerGoals] = useState("");
-  const [topAssistId, setTopAssistId] = useState("");
+  const [topAssistId,    setTopAssistId]    = useState("");
   const [topAssistCount, setTopAssistCount] = useState("");
+  const [goldenBallId,   setGoldenBallId]   = useState("");
 
-  const [locked, setLocked] = useState(false);
+  const [locked,       setLocked]       = useState(false);
+  const [userId,       setUserId]       = useState<string | null>(null);
+  const [displayName,  setDisplayName]  = useState<string | null>(null);
+  const [rank,         setRank]         = useState<number | null>(null);
+  const [nameInput,    setNameInput]    = useState("");
+  const [nameError,    setNameError]    = useState("");
 
-  // Reordering groups
-  const moveUp = (group: "A" | "B", index: number) => {
-    if (locked || index === 0) return;
-    const g = group === "A" ? [...groupA] : [...groupB];
-    [g[index - 1], g[index]] = [g[index], g[index - 1]];
-    if (group === "A") setGroupA(g);
-    else setGroupB(g);
+  // ── Restore picks from localStorage on mount ───────────────────────────────
+  useEffect(() => {
+    const user = getAuthUser();
+    if (!user) return;
+    setUserId(user.id);
+    setDisplayName(user.displayName);
+    const saved = getUserPicks(user.id);
+    if (!saved) return;
+    setRankings(saved.groupRankings);
+    setChampion(saved.championId);
+    setFinalist(saved.finalistId);
+    setTopScorerId(saved.topScorerId);
+    setTopScorerGoals(String(saved.topScorerGoals));
+    setTopAssistId(saved.topAssistId);
+    setTopAssistCount(String(saved.topAssistCount));
+    setGoldenBallId(saved.goldenBallId);
+    setLocked(true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Reordering ─────────────────────────────────────────────────────────────
+  const moveTeam = (group: string, index: number, dir: 1 | -1) => {
+    if (locked) return;
+    const newIdx = index + dir;
+    if (newIdx < 0 || newIdx > 3) return;
+    setRankings((prev) => {
+      const g = [...prev[group]];
+      [g[index], g[newIdx]] = [g[newIdx], g[index]];
+      return { ...prev, [group]: g };
+    });
   };
 
-  const moveDown = (group: "A" | "B", index: number) => {
-    if (locked || index === 3) return;
-    const g = group === "A" ? [...groupA] : [...groupB];
-    [g[index + 1], g[index]] = [g[index], g[index + 1]];
-    if (group === "A") setGroupA(g);
-    else setGroupB(g);
-  };
+  // ── Lab group predictions (by powerIndex) ──────────────────────────────────
+  const labGroupOrder = useMemo(() => {
+    const r: Record<string, string[]> = {};
+    for (const g of GROUP_LETTERS) {
+      r[g] = [...teams]
+        .filter((t) => t.group === g)
+        .sort((a, b) => b.powerIndex - a.powerIndex)
+        .map((t) => t.id);
+    }
+    return r;
+  }, [teams]);
 
-  // Derived knockout matchups
-  const sf1Team1 = groupA[0];
-  const sf1Team2 = groupB[1];
-  const sf2Team1 = groupB[0];
-  const sf2Team2 = groupA[1];
+  // ── Dropdown options ───────────────────────────────────────────────────────
+  const teamOptions: SelectOption[] = useMemo(
+    () =>
+      [...teams]
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((t) => ({
+          value:    t.id,
+          label:    t.name,
+          sublabel: `Group ${t.group}`,
+          flagCode: t.flagCode,
+        })),
+    [teams],
+  );
 
-  // Helper to visually render a bracket node
-  const renderBracketNode = (teamId: string, isWinner: boolean, onClick: () => void, seedLabel?: string) => {
-    const t = teamsById.get(teamId);
-    if (!t) return <div style={{ height: "46px", background: "var(--surface-1)", border: "1px solid var(--border-subtle)" }} />;
+  const playerOptions: SelectOption[] = useMemo(
+    () =>
+      [...players]
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((p) => {
+          const team = teamsById.get(p.teamId);
+          return {
+            value:    p.id,
+            label:    p.name,
+            sublabel: team?.name ?? p.teamId,
+            flagCode: team?.flagCode,
+            photoUrl: p.photoUrl,
+          };
+        }),
+    [players, teamsById],
+  );
 
-    return (
-      <div
-        onClick={!locked ? onClick : undefined}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "0.75rem",
-          padding: "0.6rem 0.8rem",
-          background: isWinner ? "var(--cyan-soft)" : "var(--surface-1)",
-          border: isWinner ? "1px solid var(--cyan-vivid)" : "1px solid var(--border-default)",
-          cursor: locked ? "not-allowed" : "pointer",
-          position: "relative",
-          zIndex: 10,
-          transition: "all 0.2s ease",
-          minWidth: "160px"
-        }}
-      >
-        {seedLabel && (
-          <span style={{ fontSize: "0.55rem", fontWeight: 800, color: "var(--text-500)" }}>{seedLabel}</span>
-        )}
-        {t.flagCode && (
-          <img src={`https://flagcdn.com/w40/${t.flagCode}.png`} alt="" width={20} height={14} style={{ objectFit: "cover" }} />
-        )}
-        <span style={{ fontSize: "0.8rem", fontWeight: 700, color: isWinner ? "var(--cyan-vivid)" : "var(--text-100)" }}>
-          {t.name}
-        </span>
-      </div>
-    );
-  };
+  // ── Progress ───────────────────────────────────────────────────────────────
+  const fields = [!!champion, !!finalist, !!topScorerId, !!topScorerGoals, !!topAssistId, !!topAssistCount, !!goldenBallId];
+  const filledCount  = fields.filter(Boolean).length;
+  const canLock      = fields.every(Boolean);
+  const progressPct  = filledCount / fields.length;
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  const teamName  = (id: string) => teamsById.get(id)?.name ?? id;
+  const teamFlag  = (id: string) => teamsById.get(id)?.flagCode;
+  const playerName = (id: string) => players.find((p) => p.id === id)?.name ?? "—";
+  const groupMatchesLab = (g: string) =>
+    (rankings[g] ?? []).slice(0, 2).every((id, i) => labGroupOrder[g]?.[i] === id);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "3rem", paddingBottom: "4rem" }}>
-      {/* ── Header ─────────────────────────────────────────────────── */}
+    <div style={{ display: "flex", flexDirection: "column", gap: "3.5rem", paddingBottom: "5rem" }}>
+
+      {/* ── HERO ─────────────────────────────────────────────────── */}
       <div>
         <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "1.25rem" }}>
           <div className="live-dot" />
           <span style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--text-400)" }}>
-            Interactive Bracket
+            World Cup 2026 · Tournament Prediction Challenge
           </span>
         </div>
-        <h1 className="text-sport-hero" style={{ margin: "0 0 0.75rem" }}>
-          Tournament<br />
-          <span style={{ color: "var(--cyan-vivid)" }}>Challenge.</span>
+
+        <h1 className="text-display" style={{ margin: "0 0 0.75rem" }}>
+          Beat{" "}
+          <span style={{ color: "var(--cyan-vivid)" }}>The Lab.</span>
         </h1>
-        <p style={{ margin: 0, maxWidth: "540px", fontSize: "0.95rem", color: "var(--text-300)", lineHeight: 1.6 }}>
-          Rank the group stages, build your playoff tree, and forecast the top performers. 
-          When locked, compare your deterministic bracket directly against the AI's probabilistic final outlook.
+
+        <p style={{ margin: "0 0 1.5rem", maxWidth: "560px", fontSize: "0.9rem", color: "var(--text-300)", lineHeight: 1.65 }}>
+          Rank all 12 groups, pick the champion &amp; finalist, and call the individual award winners.
+          Lock in before the tournament starts — we'll score your picks against 10,000 AI simulations.
         </p>
+
+        {/* ── Inline name prompt (shown when not identified) ─────── */}
+        {!displayName && !locked && (
+          <div style={{
+            border: "1px solid var(--border-accent)", background: "var(--cyan-soft)",
+            padding: "0.85rem 1.1rem", marginBottom: "1.25rem",
+            display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap",
+          }}>
+            <span style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-300)", flexShrink: 0 }}>
+              Who's competing?
+            </span>
+            <input
+              type="text"
+              value={nameInput}
+              onChange={(e) => { setNameInput(e.target.value); setNameError(""); }}
+              placeholder="Your display name"
+              maxLength={32}
+              style={{
+                flex: "1 1 140px", padding: "0.4rem 0.65rem",
+                background: "#0e0320", border: `1px solid ${nameError ? "var(--rose-vivid)" : "var(--border-default)"}`,
+                color: "var(--text-100)", fontSize: "0.82rem", fontFamily: "var(--font-sans)",
+                outline: "none", minWidth: 0,
+              }}
+            />
+            <button
+              onClick={() => {
+                const name = nameInput.trim();
+                if (!name || name.length < 2) { setNameError("Min 2 characters"); return; }
+                const { signIn } = require("@/lib/store");
+                const user = signIn(name);
+                setUserId(user.id);
+                setDisplayName(user.displayName);
+              }}
+              style={{
+                padding: "0.4rem 1rem", background: "var(--cyan-vivid)",
+                border: "none", color: "var(--surface-0)",
+                fontSize: "0.72rem", fontWeight: 900, fontStyle: "italic",
+                letterSpacing: "0.08em", textTransform: "uppercase",
+                cursor: "pointer", flexShrink: 0,
+              }}
+            >
+              Save Name
+            </button>
+            {nameError && <span style={{ fontSize: "0.65rem", color: "var(--rose-vivid)", width: "100%" }}>{nameError}</span>}
+          </div>
+        )}
+
+        {/* Progress bar */}
+        <div style={{ border: "1px solid var(--border-subtle)", padding: "1rem 1.25rem" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", marginBottom: "0.6rem" }}>
+            <span style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: locked ? "var(--cyan-vivid)" : "var(--text-400)", fontStyle: locked ? "italic" : "normal" }}>
+              {locked
+                ? `Picks locked${displayName ? ` · ${displayName}` : ""}`
+                : canLock
+                  ? "All picks ready — lock them in"
+                  : `${filledCount} / ${fields.length} picks filled`}
+            </span>
+            {!locked ? (
+              <button
+                onClick={() => {
+                  if (!canLock) return;
+                  const user = getAuthUser();
+                  const uid  = userId ?? user?.id ?? `guest-${Date.now()}`;
+                  const name = displayName ?? user?.displayName ?? "Anonymous";
+                  const picks = {
+                    userId:         uid,
+                    lockedAt:       new Date().toISOString(),
+                    groupRankings:  rankings,
+                    championId:     champion,
+                    finalistId:     finalist,
+                    topScorerId,
+                    topScorerGoals: Number(topScorerGoals),
+                    topAssistId,
+                    topAssistCount: Number(topAssistCount),
+                    goldenBallId,
+                  };
+                  saveUserPicks(picks);
+                  upsertLeaderboardEntry({ userId: uid, displayName: name, points: 0, isBot: false, picks });
+                  const { getLeaderboard } = require("@/lib/store");
+                  const board = getLeaderboard();
+                  const r = board.findIndex((e: { userId: string }) => e.userId === uid) + 1;
+                  setRank(r > 0 ? r : null);
+                  setDisplayName(name);
+                  setLocked(true);
+                }}
+                disabled={!canLock}
+                style={{
+                  padding: "0.5rem 1.4rem",
+                  background: canLock ? "var(--cyan-vivid)" : "transparent",
+                  border: `1px solid ${canLock ? "var(--cyan-vivid)" : "var(--border-default)"}`,
+                  color: canLock ? "var(--surface-0)" : "var(--text-500)",
+                  fontSize: "0.78rem", fontWeight: 900, fontStyle: "italic",
+                  letterSpacing: "0.08em", textTransform: "uppercase",
+                  transform: "skewX(-8deg)", cursor: canLock ? "pointer" : "not-allowed",
+                  opacity: canLock ? 1 : 0.5, transition: "all 0.15s ease",
+                  whiteSpace: "nowrap", flexShrink: 0,
+                }}
+              >
+                <span style={{ transform: "skewX(8deg)", display: "inline-block" }}>Lock In Picks →</span>
+              </button>
+            ) : (
+              <span style={{
+                padding: "0.35rem 0.9rem", background: "var(--cyan-soft)",
+                border: "1px solid var(--cyan-vivid)", color: "var(--cyan-vivid)",
+                fontSize: "0.68rem", fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase",
+              }}>LOCKED</span>
+            )}
+          </div>
+          <div style={{ height: "3px", background: "var(--border-subtle)" }}>
+            <div style={{
+              height: "100%",
+              width: locked ? "100%" : `${Math.round(progressPct * 100)}%`,
+              background: locked ? "var(--cyan-vivid)" : "var(--cyan-mid)",
+              transition: "width 0.4s ease",
+            }} />
+          </div>
+        </div>
+
+        {/* ── Post-lock "You're in the competition" panel ────────── */}
+        {locked && rank !== null && (
+          <div style={{
+            marginTop: "1rem",
+            border: "1px solid rgba(0,224,150,0.35)", background: "rgba(0,224,150,0.06)",
+            padding: "1rem 1.25rem",
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            gap: "1rem", flexWrap: "wrap",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+              <span style={{ fontSize: "1.2rem" }}>🏆</span>
+              <div>
+                <p style={{ margin: "0 0 2px", fontSize: "0.78rem", fontWeight: 800, color: "var(--green-vivid)" }}>
+                  You&apos;re in the competition!
+                </p>
+                <p style={{ margin: 0, fontSize: "0.68rem", color: "var(--text-400)" }}>
+                  {displayName && <strong style={{ color: "var(--text-200)" }}>{displayName}</strong>} · Current rank{" "}
+                  <strong style={{ color: "var(--cyan-vivid)" }}>#{rank}</strong>
+                </p>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+              <a href="/leaderboard" style={{
+                padding: "0.45rem 1rem",
+                background: "var(--cyan-vivid)", color: "var(--surface-0)",
+                fontSize: "0.72rem", fontWeight: 900, fontStyle: "italic",
+                letterSpacing: "0.08em", textTransform: "uppercase",
+                textDecoration: "none", transform: "skewX(-8deg)", display: "inline-block",
+              }}>
+                <span style={{ transform: "skewX(8deg)", display: "inline-block" }}>See Leaderboard →</span>
+              </a>
+              <a href="/agent-feed" style={{
+                padding: "0.45rem 1rem",
+                background: "transparent", color: "var(--cyan-vivid)",
+                border: "1px solid var(--cyan-vivid)",
+                fontSize: "0.72rem", fontWeight: 700,
+                letterSpacing: "0.06em", textTransform: "uppercase",
+                textDecoration: "none", display: "inline-block",
+              }}>
+                You vs Lab →
+              </a>
+            </div>
+          </div>
+        )}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "2.5rem", alignItems: "flex-start" }}>
-        
-        {/* ── Group Stage Ranker ─────────────────────────────────────── */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-          <div>
-            <h2 style={{ fontSize: "0.85rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-200)", margin: "0 0 1rem" }}>
-              Group Standings
-            </h2>
-            <p style={{ fontSize: "0.75rem", color: "var(--text-400)", marginBottom: "1.5rem", lineHeight: 1.5 }}>
-              Use the arrows to rank the teams. The top 2 from each group advance to the playoffs.
-            </p>
-          </div>
+      {/* ── GROUP STAGE ──────────────────────────────────────────── */}
+      <div>
+        <SectionHeader
+          label="Group Stage"
+          sub={`Rank all ${GROUP_LETTERS.length} groups · top 2 advance`}
+        />
 
-          {[
-            { label: "Group A", list: groupA, handlerUp: (i:number) => moveUp("A", i), handlerDown: (i:number)=> moveDown("A", i) },
-            { label: "Group B", list: groupB, handlerUp: (i:number) => moveUp("B", i), handlerDown: (i:number)=> moveDown("B", i) },
-          ].map(({ label, list, handlerUp, handlerDown }) => (
-            <div key={label} style={{ border: "1px solid var(--border-subtle)", background: "var(--surface-0)" }}>
-              <div style={{ padding: "0.6rem 1rem", borderBottom: "1px solid var(--border-subtle)", background: "var(--surface-1)" }}>
-                <span style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-400)" }}>
-                  {label}
-                </span>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column" }}>
-                {list.map((teamId, idx) => {
-                  const t = teamsById.get(teamId)!;
-                  const isAdvancing = idx < 2;
+        <div style={{
+          display: "grid",
+          gap: "1rem",
+          gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))",
+        }}>
+          {GROUP_LETTERS.map((g) => {
+            const groupTeams = rankings[g] ?? [];
+            if (groupTeams.length === 0) return null;
+            const labOrder = labGroupOrder[g] ?? [];
+            const matches  = groupMatchesLab(g);
+
+            return (
+              <div
+                key={g}
+                style={{
+                  border: locked
+                    ? matches ? "1px solid rgba(0,224,150,0.35)" : "1px solid var(--border-subtle)"
+                    : "1px solid var(--border-subtle)",
+                  background: "var(--surface-1)",
+                }}
+              >
+                {/* Header */}
+                <div style={{
+                  padding: "0.5rem 0.75rem",
+                  borderBottom: "1px solid var(--border-subtle)",
+                  background: "var(--surface-2)",
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                }}>
+                  <span style={{ fontSize: "0.72rem", fontWeight: 900, fontStyle: "italic", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-100)" }}>
+                    Group {g}
+                  </span>
+                  {locked && (
+                    <span style={{ fontSize: "0.55rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: matches ? "var(--green-vivid)" : "var(--text-500)" }}>
+                      {matches ? "✓ Lab match" : "Differs"}
+                    </span>
+                  )}
+                </div>
+
+                {/* Teams */}
+                {groupTeams.map((teamId, idx) => {
+                  const t = teamsById.get(teamId);
+                  if (!t) return null;
+                  const qualifies = idx < 2;
+                  const labIdx    = labOrder.indexOf(teamId);
+                  const diff      = locked && labIdx >= 0 ? labIdx - idx : 0;
+
                   return (
-                    <div key={teamId} style={{ display: "flex", alignItems: "center", padding: "0.4rem 0.5rem", borderBottom: idx < 3 ? "1px solid var(--border-subtle)" : "none", background: isAdvancing ? "var(--surface-2)" : "transparent" }}>
-                      {/* Rank Number */}
-                      <div style={{ width: "24px", textAlign: "center", fontSize: "0.8rem", fontWeight: 800, color: isAdvancing ? "var(--cyan-vivid)" : "var(--text-500)" }}>
+                    <div
+                      key={teamId}
+                      style={{
+                        display: "flex", alignItems: "center", gap: "0.4rem",
+                        padding: "0.42rem 0.55rem",
+                        borderBottom: idx < 3 ? "1px solid var(--border-subtle)" : "none",
+                        background: qualifies ? "rgba(255,255,255,0.02)" : "transparent",
+                      }}
+                    >
+                      <span style={{ width: "14px", textAlign: "center", fontSize: "0.7rem", fontWeight: 800, color: qualifies ? "var(--cyan-vivid)" : "var(--text-500)", flexShrink: 0 }}>
                         {idx + 1}
-                      </div>
-                      
-                      {/* Controls */}
-                      <div style={{ display: "flex", flexDirection: "column", opacity: locked ? 0.3 : 1, margin: "0 0.5rem" }}>
-                        <button onClick={() => handlerUp(idx)} disabled={locked || idx === 0} style={{ background: "transparent", border: "none", cursor: locked || idx === 0 ? "default" : "pointer", padding: "0", color: "var(--text-400)", fontSize: "0.6rem" }}>▲</button>
-                        <button onClick={() => handlerDown(idx)} disabled={locked || idx === 3} style={{ background: "transparent", border: "none", cursor: locked || idx === 3 ? "default" : "pointer", padding: "0", color: "var(--text-400)", fontSize: "0.6rem" }}>▼</button>
-                      </div>
+                      </span>
 
-                      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flex: 1 }}>
-                        <img src={`https://flagcdn.com/w40/${t.flagCode}.png`} alt="" width={20} height={14} style={{ objectFit: "cover" }} />
-                        <span style={{ fontSize: "0.8rem", fontWeight: 700, color: isAdvancing ? "var(--text-100)" : "var(--text-300)" }}>{t.name}</span>
-                      </div>
+                      {t.flagCode && (
+                        <img
+                          src={`https://flagcdn.com/w40/${t.flagCode}.png`}
+                          alt=""
+                          width={17}
+                          height={11}
+                          style={{ objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.06)" }}
+                        />
+                      )}
+
+                      <span style={{
+                        flex: 1, fontSize: "0.76rem",
+                        fontWeight: qualifies ? 700 : 400,
+                        color: qualifies ? "var(--text-100)" : "var(--text-400)",
+                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                      }}>
+                        {t.name}
+                      </span>
+
+                      {locked && diff !== 0 && (
+                        <span style={{ fontSize: "0.6rem", fontWeight: 700, color: diff > 0 ? "var(--text-500)" : "var(--rose-vivid)", flexShrink: 0 }}>
+                          {diff > 0 ? `↓${diff}` : `↑${Math.abs(diff)}`}
+                        </span>
+                      )}
+
+                      {!locked && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "1px", flexShrink: 0 }}>
+                          {[{ dir: -1 as const, label: "▲", disabled: idx === 0 }, { dir: 1 as const, label: "▽", disabled: idx === 3 }].map(({ dir, label, disabled }) => (
+                            <button
+                              key={dir}
+                              onClick={() => moveTeam(g, idx, dir)}
+                              disabled={disabled}
+                              style={{
+                                width: "15px", height: "13px", padding: 0,
+                                background: "transparent",
+                                border: "1px solid var(--border-subtle)",
+                                color: disabled ? "var(--text-500)" : "var(--text-300)",
+                                fontSize: "0.5rem", lineHeight: 1,
+                                cursor: disabled ? "not-allowed" : "pointer",
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                              }}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
-
-        {/* ── Bracket & Players ──────────────────────────────────────── */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "2.5rem" }}>
-          
-          {/* PLAYOFF BRACKET */}
-          <div>
-            <h2 style={{ fontSize: "0.85rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-200)", margin: "0 0 1.5rem" }}>
-              Knockout Stage
-            </h2>
-            <div style={{ 
-              display: "flex", 
-              justifyContent: "space-between", 
-              alignItems: "center",
-              background: "var(--surface-0)",
-              border: "1px solid var(--border-subtle)",
-              padding: "2.5rem 1.5rem"
-            }} className="bracket-container">
-              
-              {/* SEMIFINAL COLUMN */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "3rem", width: "190px" }}>
-                
-                {/* MATCH 1: 1A vs 2B */}
-                <div style={{ display: "flex", flexDirection: "column", gap: "0", border: "1px solid var(--border-subtle)" }}>
-                  {renderBracketNode(sf1Team1, sf1Winner === sf1Team1, () => { setSf1Winner(sf1Team1); if(champion === sf1Team2) setChampion(null); }, "1A")}
-                  <div style={{ height: "1px", background: "var(--border-subtle)" }} />
-                  {renderBracketNode(sf1Team2, sf1Winner === sf1Team2, () => { setSf1Winner(sf1Team2); if(champion === sf1Team1) setChampion(null); }, "2B")}
-                </div>
-
-                {/* MATCH 2: 1B vs 2A */}
-                <div style={{ display: "flex", flexDirection: "column", gap: "0", border: "1px solid var(--border-subtle)" }}>
-                  {renderBracketNode(sf2Team1, sf2Winner === sf2Team1, () => { setSf2Winner(sf2Team1); if(champion === sf2Team2) setChampion(null); }, "1B")}
-                  <div style={{ height: "1px", background: "var(--border-subtle)" }} />
-                  {renderBracketNode(sf2Team2, sf2Winner === sf2Team2, () => { setSf2Winner(sf2Team2); if(champion === sf2Team1) setChampion(null); }, "2A")}
-                </div>
-
-              </div>
-
-              {/* FINAL COLUMN */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem", width: "190px", position: "relative" }}>
-                <span style={{ position: "absolute", top: "-25px", left: "50%", transform: "translateX(-50%)", fontSize: "0.6rem", fontWeight: 800, letterSpacing: "0.15em", color: "var(--cyan-vivid)" }}>FINAL</span>
-                <div style={{ display: "flex", flexDirection: "column", gap: "0", border: "1px solid var(--border-accent)", boxShadow: "0 0 20px rgba(0, 212, 255, 0.1)" }}>
-                  {sf1Winner 
-                    ? renderBracketNode(sf1Winner, champion === sf1Winner, () => setChampion(sf1Winner), "W1")
-                    : <div style={{ height: "46px", background: "var(--surface-1)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-500)", fontSize: "0.7rem", fontWeight: 700 }}>TBD</div>
-                  }
-                  <div style={{ height: "1px", background: "var(--border-accent)" }} />
-                  {sf2Winner 
-                    ? renderBracketNode(sf2Winner, champion === sf2Winner, () => setChampion(sf2Winner), "W2")
-                    : <div style={{ height: "46px", background: "var(--surface-1)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-500)", fontSize: "0.7rem", fontWeight: 700 }}>TBD</div>
-                  }
-                </div>
-              </div>
-
-              {/* CHAMPION COLUMN */}
-              <div style={{ width: "150px", display: "flex", flexDirection: "column", alignItems: "center" }}>
-                 <div style={{ 
-                   width: "80px", height: "80px", borderRadius: "50%", 
-                   border: champion ? "4px solid var(--cyan-vivid)" : "4px dashed var(--border-default)",
-                   display: "flex", alignItems: "center", justifyContent: "center",
-                   background: "var(--surface-1)",
-                   boxShadow: champion ? "0 0 40px var(--cyan-glow)" : "none",
-                   transition: "all 0.3s ease"
-                 }}>
-                   {champion && teamsById.get(champion)?.flagCode ? (
-                     <img src={`https://flagcdn.com/w80/${teamsById.get(champion)?.flagCode}.png`} alt="" width={44} height={30} style={{ objectFit: "cover" }} />
-                   ) : (
-                     <span style={{ fontSize: "1.5rem" }}>🏆</span>
-                   )}
-                 </div>
-                 <span style={{ marginTop: "1rem", fontSize: "0.9rem", fontWeight: 900, textTransform: "uppercase", color: champion ? "var(--cyan-vivid)" : "var(--text-500)", letterSpacing: "0.1em" }}>
-                   {champion ? teamsById.get(champion)?.name : "Champion"}
-                 </span>
-              </div>
-
-            </div>
-          </div>
-
-          {/* PLAYER PREDICTIONS */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem" }}>
-            <div style={{ border: "1px solid var(--border-subtle)", padding: "1.25rem", background: "var(--surface-0)" }}>
-              <span style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-400)", display: "block", marginBottom: "1rem" }}>
-                Golden Boot Prediction
-              </span>
-              <div style={{ display: "flex", gap: "0.5rem" }}>
-                <select 
-                  value={topScorerId} 
-                  onChange={(e) => setTopScorerId(e.target.value)}
-                  disabled={locked}
-                  style={{ flex: 1, padding: "0.6rem 0.8rem", background: "var(--surface-1)", border: "1px solid var(--border-default)", color: "var(--text-100)", fontSize: "0.85rem", fontWeight: 600, outline: "none", cursor: locked ? "not-allowed" : "pointer" }}
-                >
-                  <option value="">— Select Player —</option>
-                  {players.sort((a,b) => a.name.localeCompare(b.name)).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
-                <input 
-                  type="number" 
-                  min="0" 
-                  placeholder="Goals"
-                  value={topScorerGoals}
-                  onChange={(e) => setTopScorerGoals(e.target.value)}
-                  disabled={locked}
-                  style={{ width: "80px", padding: "0.6rem", background: "var(--surface-1)", border: "1px solid var(--border-default)", color: "var(--text-100)", fontSize: "0.85rem", fontWeight: 800, textAlign: "center", outline: "none" }}
-                />
-              </div>
-            </div>
-
-            <div style={{ border: "1px solid var(--border-subtle)", padding: "1.25rem", background: "var(--surface-0)" }}>
-              <span style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-400)", display: "block", marginBottom: "1rem" }}>
-                Top Assist Prediction
-              </span>
-              <div style={{ display: "flex", gap: "0.5rem" }}>
-                <select 
-                  value={topAssistId} 
-                  onChange={(e) => setTopAssistId(e.target.value)}
-                  disabled={locked}
-                  style={{ flex: 1, padding: "0.6rem 0.8rem", background: "var(--surface-1)", border: "1px solid var(--border-default)", color: "var(--text-100)", fontSize: "0.85rem", fontWeight: 600, outline: "none", cursor: locked ? "not-allowed" : "pointer" }}
-                >
-                  <option value="">— Select Player —</option>
-                  {players.sort((a,b) => a.name.localeCompare(b.name)).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
-                <input 
-                  type="number" 
-                  min="0" 
-                  placeholder="Assists"
-                  value={topAssistCount}
-                  onChange={(e) => setTopAssistCount(e.target.value)}
-                  disabled={locked}
-                  style={{ width: "80px", padding: "0.6rem", background: "var(--surface-1)", border: "1px solid var(--border-default)", color: "var(--text-100)", fontSize: "0.85rem", fontWeight: 800, textAlign: "center", outline: "none" }}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* LOCK BAR / LAB COMPARISON */}
-          <div style={{ marginTop: "1rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
-             {!locked ? (
-               <button 
-                 onClick={() => setLocked(true)}
-                 disabled={!champion || !topScorerId || !topAssistId || !topScorerGoals || !topAssistCount}
-                 style={{ 
-                   width: "100%", padding: "1.2rem", background: "var(--cyan-vivid)", color: "var(--ink-900)", 
-                   fontSize: "0.9rem", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.1em",
-                   border: "none", cursor: (!champion || !topScorerId || !topAssistId || !topScorerGoals || !topAssistCount) ? "not-allowed" : "pointer",
-                   opacity: (!champion || !topScorerId || !topAssistId || !topScorerGoals || !topAssistCount) ? 0.3 : 1,
-                   transform: "skewX(-8deg)"
-                 }}
-               >
-                 <span style={{ transform: "skewX(8deg)", display: "inline-block" }}>Lock In Bracket & Compare With AI →</span>
-               </button>
-             ) : (
-               <div style={{ border: "1px solid var(--cyan-vivid)", background: "var(--cyan-soft)", padding: "1.5rem" }}>
-                 <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "1rem" }}>
-                    <div style={{ width: "3px", height: "1rem", background: "var(--cyan-vivid)", flexShrink: 0 }} />
-                    <span style={{ fontSize: "0.7rem", fontWeight: 800, fontStyle: "italic", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-100)" }}>
-                      AI Calibration Result
-                    </span>
-                 </div>
-                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem" }}>
-                   <div>
-                     <p style={{ margin: "0 0 0.5rem", fontSize: "0.65rem", color: "var(--text-400)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Lab Champion Pick</p>
-                     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", background: "var(--surface-1)", padding: "0.8rem", border: "1px solid var(--border-default)" }}>
-                       {lab.champion.team.flagCode && <img src={`https://flagcdn.com/w40/${lab.champion.team.flagCode}.png`} alt="" width={20} height={14} />}
-                       <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--amber-vivid)" }}>{lab.champion.team.name}</span>
-                       <span style={{ marginLeft: "auto", fontSize: "0.75rem", fontFamily: "var(--font-mono)", color: "var(--text-300)" }}>{(lab.champion.prob * 100).toFixed(1)}%</span>
-                     </div>
-                   </div>
-                   <div>
-                     <p style={{ margin: "0 0 0.5rem", fontSize: "0.65rem", color: "var(--text-400)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Lab Top Scorer Fav</p>
-                     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", background: "var(--surface-1)", padding: "0.8rem", border: "1px solid var(--border-default)" }}>
-                       <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--green-vivid)" }}>{lab.topScorer?.player.name}</span>
-                       <span style={{ marginLeft: "auto", fontSize: "0.75rem", fontFamily: "var(--font-mono)", color: "var(--text-300)" }}>{(lab.topScorer ? lab.topScorer.prob * 100 : 0).toFixed(1)}%</span>
-                     </div>
-                   </div>
-                 </div>
-               </div>
-             )}
-          </div>
-        </div>
-
       </div>
+
+      {/* ── TOURNAMENT OUTCOME ───────────────────────────────────── */}
+      <div>
+        <SectionHeader label="Tournament Outcome" accent="var(--amber-vivid)" />
+
+        <div style={{ display: "grid", gap: "1rem", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
+
+          {/* Champion */}
+          <div style={{ border: "1px solid var(--border-subtle)", background: "var(--surface-1)", overflow: "visible" }}>
+            <div style={{ padding: "0.75rem 1rem", borderBottom: "1px solid var(--border-subtle)", background: "var(--surface-2)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontSize: "0.65rem", fontWeight: 800, fontStyle: "italic", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--amber-vivid)" }}>
+                World Champion
+              </span>
+              {locked && (
+                <LabChip text={`${lab.champion.team.name} ${toPercent(lab.champion.prob)}`} />
+              )}
+            </div>
+            <div style={{ padding: "0.85rem", position: "relative", zIndex: 10 }}>
+              <SearchableSelect
+                options={teamOptions}
+                value={champion}
+                onChange={setChampion}
+                placeholder="— Pick your champion —"
+                disabled={locked}
+                mode="flag"
+              />
+              {locked && champion && (
+                <p style={{ margin: "0.5rem 0 0", fontSize: "0.65rem", fontFamily: "var(--font-mono)", color: champion === lab.champion.team.id ? "var(--green-vivid)" : "var(--text-500)" }}>
+                  {champion === lab.champion.team.id ? "✓ Matches Lab pick" : `Lab picked: ${lab.champion.team.name}`}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Finalist */}
+          <div style={{ border: "1px solid var(--border-subtle)", background: "var(--surface-1)", overflow: "visible" }}>
+            <div style={{ padding: "0.75rem 1rem", borderBottom: "1px solid var(--border-subtle)", background: "var(--surface-2)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontSize: "0.65rem", fontWeight: 800, fontStyle: "italic", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--cyan-vivid)" }}>
+                Runner-Up / Finalist
+              </span>
+              {locked && (
+                <LabChip text={`${lab.finalist.team.name} ${toPercent(lab.finalist.prob)}`} />
+              )}
+            </div>
+            <div style={{ padding: "0.85rem", position: "relative", zIndex: 10 }}>
+              <SearchableSelect
+                options={teamOptions}
+                value={finalist}
+                onChange={setFinalist}
+                placeholder="— Pick the finalist —"
+                disabled={locked}
+                mode="flag"
+              />
+              {locked && finalist && (
+                <p style={{ margin: "0.5rem 0 0", fontSize: "0.65rem", fontFamily: "var(--font-mono)", color: finalist === lab.finalist.team.id ? "var(--green-vivid)" : "var(--text-500)" }}>
+                  {finalist === lab.finalist.team.id ? "✓ Matches Lab pick" : `Lab picked: ${lab.finalist.team.name}`}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── INDIVIDUAL AWARDS ────────────────────────────────────── */}
+      <div>
+        <SectionHeader label="Individual Awards" accent="var(--amber-vivid)" sub="Golden Boot · Assist King · Golden Ball" />
+
+        <div style={{ display: "grid", gap: "1rem", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
+
+          {/* Golden Boot */}
+          <div style={{ border: "1px solid var(--border-subtle)", background: "var(--surface-1)", overflow: "visible" }}>
+            <div style={{ padding: "0.75rem 1rem", borderBottom: "1px solid var(--border-subtle)", background: "var(--surface-2)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <span style={{ fontSize: "0.65rem", fontWeight: 800, fontStyle: "italic", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--amber-vivid)" }}>
+                  Golden Boot
+                </span>
+                <span style={{ fontSize: "0.58rem", color: "var(--text-500)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                  Top Scorer
+                </span>
+              </div>
+              {locked && lab.topScorer && (
+                <LabChip text={`${lab.topScorer.player.name} ${toPercent(lab.topScorer.prob)}`} />
+              )}
+            </div>
+            <div style={{ padding: "0.85rem", display: "flex", flexDirection: "column", gap: "0.6rem", position: "relative", zIndex: 10 }}>
+              <SearchableSelect
+                options={playerOptions}
+                value={topScorerId}
+                onChange={setTopScorerId}
+                placeholder="— Pick top scorer —"
+                disabled={locked}
+                mode="player"
+              />
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <NumberInput
+                  value={topScorerGoals}
+                  onChange={setTopScorerGoals}
+                  disabled={locked}
+                  placeholder="Goals"
+                />
+                <span style={{ fontSize: "0.72rem", color: "var(--text-400)", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                  predicted goals in tournament
+                </span>
+              </div>
+              {locked && topScorerId && lab.topScorer && (
+                <p style={{ margin: 0, fontSize: "0.65rem", fontFamily: "var(--font-mono)", color: topScorerId === lab.topScorer.player.id ? "var(--green-vivid)" : "var(--text-500)" }}>
+                  {topScorerId === lab.topScorer.player.id ? "✓ Matches Lab" : `Lab: ${lab.topScorer.player.name}`}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Assist King */}
+          <div style={{ border: "1px solid var(--border-subtle)", background: "var(--surface-1)", overflow: "visible" }}>
+            <div style={{ padding: "0.75rem 1rem", borderBottom: "1px solid var(--border-subtle)", background: "var(--surface-2)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <span style={{ fontSize: "0.65rem", fontWeight: 800, fontStyle: "italic", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--green-vivid)" }}>
+                  Assist King
+                </span>
+                <span style={{ fontSize: "0.58rem", color: "var(--text-500)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                  Most Assists
+                </span>
+              </div>
+              {locked && lab.topAssist && (
+                <LabChip text={`${lab.topAssist.player.name} ${toPercent(lab.topAssist.prob)}`} />
+              )}
+            </div>
+            <div style={{ padding: "0.85rem", display: "flex", flexDirection: "column", gap: "0.6rem", position: "relative", zIndex: 10 }}>
+              <SearchableSelect
+                options={playerOptions}
+                value={topAssistId}
+                onChange={setTopAssistId}
+                placeholder="— Pick assist leader —"
+                disabled={locked}
+                mode="player"
+              />
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <NumberInput
+                  value={topAssistCount}
+                  onChange={setTopAssistCount}
+                  disabled={locked}
+                  placeholder="Assists"
+                />
+                <span style={{ fontSize: "0.72rem", color: "var(--text-400)", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                  predicted assists in tournament
+                </span>
+              </div>
+              {locked && topAssistId && lab.topAssist && (
+                <p style={{ margin: 0, fontSize: "0.65rem", fontFamily: "var(--font-mono)", color: topAssistId === lab.topAssist.player.id ? "var(--green-vivid)" : "var(--text-500)" }}>
+                  {topAssistId === lab.topAssist.player.id ? "✓ Matches Lab" : `Lab: ${lab.topAssist.player.name}`}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Golden Ball */}
+          <div style={{ border: "1px solid var(--border-subtle)", background: "var(--surface-1)", overflow: "visible" }}>
+            <div style={{ padding: "0.75rem 1rem", borderBottom: "1px solid var(--border-subtle)", background: "var(--surface-2)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <span style={{ fontSize: "0.65rem", fontWeight: 800, fontStyle: "italic", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--cyan-vivid)" }}>
+                  Golden Ball
+                </span>
+                <span style={{ fontSize: "0.58rem", color: "var(--text-500)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                  Best Player
+                </span>
+              </div>
+              {locked && lab.topScorer && (
+                <LabChip text={lab.topScorer.player.name} />
+              )}
+            </div>
+            <div style={{ padding: "0.85rem", position: "relative", zIndex: 10 }}>
+              <SearchableSelect
+                options={playerOptions}
+                value={goldenBallId}
+                onChange={setGoldenBallId}
+                placeholder="— Pick best player —"
+                disabled={locked}
+                mode="player"
+              />
+              {locked && goldenBallId && lab.topScorer && (
+                <p style={{ margin: "0.5rem 0 0", fontSize: "0.65rem", fontFamily: "var(--font-mono)", color: goldenBallId === lab.topScorer.player.id ? "var(--green-vivid)" : "var(--text-500)" }}>
+                  {goldenBallId === lab.topScorer.player.id ? "✓ Matches Lab" : `Lab: ${lab.topScorer.player.name}`}
+                </p>
+              )}
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      {/* ── POST-LOCK SUMMARY ────────────────────────────────────── */}
+      {locked && (
+        <div style={{ border: "1px solid var(--cyan-vivid)", background: "var(--cyan-soft)", padding: "1.5rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1.25rem" }}>
+            <div style={{ width: "3px", height: "1.1rem", background: "var(--cyan-vivid)", flexShrink: 0 }} />
+            <span style={{ fontSize: "0.68rem", fontWeight: 800, fontStyle: "italic", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-100)" }}>
+              Your Picks vs The Lab
+            </span>
+          </div>
+
+          <div style={{ display: "grid", gap: "0.75rem", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
+            {[
+              {
+                label:   "Champion",
+                yours:   teamName(champion),
+                lab:     lab.champion.team.name,
+                match:   champion === lab.champion.team.id,
+                flag:    teamFlag(champion),
+              },
+              {
+                label:   "Finalist",
+                yours:   teamName(finalist),
+                lab:     lab.finalist.team.name,
+                match:   finalist === lab.finalist.team.id,
+                flag:    teamFlag(finalist),
+              },
+              {
+                label:   "Golden Boot",
+                yours:   playerName(topScorerId) + (topScorerGoals ? ` (${topScorerGoals}g)` : ""),
+                lab:     lab.topScorer?.player.name ?? "—",
+                match:   topScorerId === lab.topScorer?.player.id,
+                flag:    undefined,
+              },
+              {
+                label:   "Assist King",
+                yours:   playerName(topAssistId) + (topAssistCount ? ` (${topAssistCount}a)` : ""),
+                lab:     lab.topAssist?.player.name ?? "—",
+                match:   topAssistId === lab.topAssist?.player.id,
+                flag:    undefined,
+              },
+              {
+                label:   "Golden Ball",
+                yours:   playerName(goldenBallId),
+                lab:     lab.topScorer?.player.name ?? "—",
+                match:   goldenBallId === lab.topScorer?.player.id,
+                flag:    undefined,
+              },
+            ].map((row) => (
+              <div key={row.label} style={{ border: "1px solid var(--border-subtle)", padding: "0.85rem", background: "var(--surface-1)" }}>
+                <p style={{ margin: "0 0 0.4rem", fontSize: "0.6rem", color: "var(--text-500)", textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: "var(--font-mono)" }}>
+                  {row.label}
+                </p>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", marginBottom: "0.25rem" }}>
+                  {row.flag && (
+                    <img src={`https://flagcdn.com/w40/${row.flag}.png`} alt="" width={16} height={11} style={{ objectFit: "cover" }} />
+                  )}
+                  <span style={{ fontSize: "0.88rem", fontWeight: 800, fontStyle: "italic", textTransform: "uppercase", color: row.match ? "var(--green-vivid)" : "var(--text-100)" }}>
+                    {row.yours}
+                  </span>
+                </div>
+                <p style={{ margin: 0, fontSize: "0.65rem", color: row.match ? "var(--green-vivid)" : "var(--text-500)", fontFamily: "var(--font-mono)" }}>
+                  {row.match ? "✓ Matches Lab" : `Lab: ${row.lab}`}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <p style={{ margin: "1.25rem 0 0", fontSize: "0.72rem", color: "var(--text-400)", lineHeight: 1.7 }}>
+            Tournament starts <strong style={{ color: "var(--text-200)" }}>June 11, 2026</strong>.
+            Your picks are locked and will be scored automatically as matches resolve.
+            Return after each round to track your accuracy against the Lab.
+          </p>
+        </div>
+      )}
+
     </div>
   );
 }

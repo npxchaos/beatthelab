@@ -1,18 +1,30 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { getAuthUser, getUserPicks } from "@/lib/store";
 
 const NAV_ITEMS = [
-  { href: "/",           label: "Outlook" },
-  { href: "/teams",      label: "Teams" },
-  { href: "/players",    label: "Players" },
-  { href: "/predict",    label: "Beat The Lab" },
-  { href: "/scenario",   label: "Scenarios" },
-  { href: "/agent-feed", label: "Agent Feed" },
+  { href: "/",            label: "Home" },
+  { href: "/teams",       label: "Teams" },
+  { href: "/players",     label: "Players" },
+  { href: "/predict",     label: "Beat The Lab" },
+  { href: "/leaderboard", label: "Leaderboard" },
+  { href: "/agent-feed",  label: "Agent Feed" },
 ];
+
+type AuthState = { name: string; hasLocked: boolean } | null;
 
 export const Navigation = () => {
   const pathname = usePathname();
+  const [auth, setAuth] = useState<AuthState>(null);
+
+  useEffect(() => {
+    const user = getAuthUser();
+    if (!user) return;
+    const picks = getUserPicks(user.id);
+    setAuth({ name: user.displayName, hasLocked: !!picks });
+  }, []);
 
   return (
     <header
@@ -94,7 +106,8 @@ export const Navigation = () => {
           </div>
         </Link>
 
-        {/* Nav links */}
+        {/* Nav links + auth pill */}
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
         <nav style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
           {NAV_ITEMS.map((item) => {
             const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
@@ -151,6 +164,57 @@ export const Navigation = () => {
             );
           })}
         </nav>
+
+        {/* Auth pill */}
+        {auth ? (
+          <Link
+            href="/leaderboard"
+            style={{
+              display: "inline-flex", alignItems: "center", gap: "0.45rem",
+              padding: "0.3rem 0.65rem",
+              border: auth.hasLocked ? "1px solid rgba(0,212,255,0.35)" : "1px solid var(--border-default)",
+              background: auth.hasLocked ? "var(--cyan-soft)" : "transparent",
+              textDecoration: "none",
+              transition: "all 0.12s ease",
+              marginLeft: "0.5rem",
+              flexShrink: 0,
+            }}
+          >
+            <span style={{
+              width: "20px", height: "20px",
+              background: "var(--cyan-vivid)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: "0.6rem", fontWeight: 900, color: "var(--surface-0)",
+              flexShrink: 0, textTransform: "uppercase",
+            }}>
+              {auth.name.slice(0, 1).toUpperCase()}
+            </span>
+            <span style={{ fontSize: "0.72rem", fontWeight: 700, color: auth.hasLocked ? "var(--cyan-vivid)" : "var(--text-300)", maxWidth: "80px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {auth.name}
+            </span>
+            {auth.hasLocked && (
+              <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--green-vivid)", boxShadow: "0 0 5px var(--green-vivid)", flexShrink: 0 }} />
+            )}
+          </Link>
+        ) : (
+          <Link
+            href="/login"
+            style={{
+              display: "inline-flex", alignItems: "center",
+              padding: "0.3rem 0.75rem",
+              border: "1px solid var(--border-default)",
+              color: "var(--text-400)",
+              fontSize: "0.72rem", fontWeight: 700,
+              letterSpacing: "0.06em", textTransform: "uppercase",
+              textDecoration: "none", marginLeft: "0.5rem",
+              transition: "all 0.12s ease",
+              flexShrink: 0,
+            }}
+          >
+            Join
+          </Link>
+        )}
+        </div>
       </div>
     </header>
   );

@@ -1,4 +1,7 @@
+import Link from "next/link";
 import { getTournamentSnapshot } from "@/lib/data";
+import { generateSyntheticPlayers } from "@/lib/synthetic-players";
+import { buildPlayerForecasts, buildTeamForecasts, buildStandings } from "@/lib/prediction";
 import { toPercent } from "@/lib/view";
 
 const POSITION_COLOR: Record<string, string> = {
@@ -17,10 +20,29 @@ const STATUS_CONFIG = {
 
 export default async function PlayersPage() {
   const snapshot = await getTournamentSnapshot();
-  const teamById = new Map(snapshot.teams.map((t) => [t.id, t]));
-  const forecastById = new Map(snapshot.playerForecasts.map((f) => [f.playerId, f]));
 
-  const rows = snapshot.players
+  // Live providers (football-data.org) return no player data.
+  // Fall back to a curated synthetic roster and rebuild forecasts from it.
+  const players =
+    snapshot.players.length > 0
+      ? snapshot.players
+      : generateSyntheticPlayers(snapshot.teams);
+
+  const playerForecasts =
+    snapshot.playerForecasts.length > 0
+      ? snapshot.playerForecasts
+      : buildPlayerForecasts(
+          players,
+          snapshot.teams,
+          snapshot.teamForecasts.length > 0
+            ? snapshot.teamForecasts
+            : buildTeamForecasts(snapshot.teams, buildStandings(snapshot.teams, snapshot.fixtures)),
+        );
+
+  const teamById = new Map(snapshot.teams.map((t) => [t.id, t]));
+  const forecastById = new Map(playerForecasts.map((f) => [f.playerId, f]));
+
+  const rows = players
     .map((p) => ({ player: p, forecast: forecastById.get(p.id) }))
     .filter((r): r is { player: typeof r.player; forecast: NonNullable<typeof r.forecast> } => !!r.forecast);
 
@@ -226,6 +248,15 @@ export default async function PlayersPage() {
         </div>
       )}
 
+      {/* ── CTA ── */}
+      <div style={{ border: "1px solid var(--border-accent)", background: "var(--cyan-soft)", padding: "1.25rem 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
+        <p style={{ margin: 0, fontSize: "0.88rem", fontWeight: 700, color: "var(--text-200)" }}>
+          Found your winner? <span style={{ color: "var(--text-400)", fontWeight: 400 }}>Pick your Golden Boot and Assist King before the tournament starts.</span>
+        </p>
+        <Link href="/predict" style={{ display: "inline-block", padding: "0.55rem 1.4rem", background: "var(--cyan-vivid)", color: "var(--surface-0)", fontSize: "0.78rem", fontWeight: 900, fontStyle: "italic", letterSpacing: "0.08em", textTransform: "uppercase", textDecoration: "none", transform: "skewX(-8deg)", flexShrink: 0 }}>
+          <span style={{ transform: "skewX(8deg)", display: "inline-block" }}>Pick Award Winners →</span>
+        </Link>
+      </div>
     </div>
   );
 }
